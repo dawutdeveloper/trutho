@@ -14,6 +14,9 @@ interface TrackStateDao {
     @Query("SELECT * FROM track_states")
     fun observeAll(): Flow<List<TrackState>>
 
+    @Query("SELECT * FROM track_states WHERE songId = :songId")
+    suspend fun get(songId: Long): TrackState?
+
     @Upsert
     suspend fun upsert(state: TrackState)
 }

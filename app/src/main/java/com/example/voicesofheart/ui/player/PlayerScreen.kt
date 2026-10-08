@@ -151,7 +151,12 @@ fun PlayerScreen(songId: Long, onBack: () -> Unit) {
                     scope.launch {
                         val base = kaizen ?: TrackState(songId = activeId, status = status)
                         db.trackStateDao().upsert(
-                            base.copy(status = status, updatedAt = System.currentTimeMillis())
+                            base.copy(
+                                status = status,
+                                completedRepeats = if (status == KaizenStatus.REPEAT && base.status != KaizenStatus.REPEAT) 0
+                                else base.completedRepeats,
+                                updatedAt = System.currentTimeMillis()
+                            )
                         )
                     }
                 },
