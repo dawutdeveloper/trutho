@@ -1,18 +1,60 @@
 package com.example.voicesofheart.ui.player
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.voicesofheart.data.local.AppDatabase
+import com.example.voicesofheart.data.local.KaizenStatus
 import com.example.voicesofheart.data.local.Note
+import com.example.voicesofheart.data.local.TrackState
 import com.example.voicesofheart.data.player.PlayerManager
 import kotlinx.coroutines.launch
 
@@ -26,35 +68,44 @@ fun PlayerScreen(songId: Long, onBack: () -> Unit) {
     val currentSong by PlayerManager.currentSong.collectAsState()
     val isPlaying by PlayerManager.isPlaying.collectAsState()
 
+    // Follow the song that is really playing (it can change with next/previous)
+    val activeId = currentSong?.id ?: songId
+
     var showNotes by remember { mutableStateOf(false) }
-    val notes by db.noteDao().getNotesForSong(songId).collectAsState(initial = emptyList())
+    val notes by remember(activeId) { db.noteDao().getNotesForSong(activeId) }
+        .collectAsState(initial = emptyList())
+    val kaizen by remember(activeId) { db.trackStateDao().observe(activeId) }
+        .collectAsState(initial = null)
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {},
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Close")
+                    IconButton(onClick = { showNotes = true }) {
+                        Icon(Icons.Filled.EditNote, contentDescription = "Notes")
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showNotes = true }) {
-                        Icon(Icons.Filled.EditNote, contentDescription = "Notes")
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Close")
                     }
                 }
             )
         }
     ) { padding ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(24.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Text(
                 currentSong?.title ?: "No song",
                 style = MaterialTheme.typography.headlineSmall,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                textAlign = TextAlign.Center
             )
             Spacer(Modifier.height(8.dp))
             Text(
@@ -65,10 +116,17 @@ fun PlayerScreen(songId: Long, onBack: () -> Unit) {
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { PlayerManager.skipPrevious() }) {
-                    Icon(Icons.Filled.SkipPrevious, contentDescription = "Previous", modifier = Modifier.size(36.dp))
+                    Icon(
+                        Icons.Filled.SkipPrevious,
+                        contentDescription = "Previous",
+                        modifier = Modifier.size(36.dp)
+                    )
                 }
                 Spacer(Modifier.width(16.dp))
-                FilledIconButton(onClick = { PlayerManager.togglePlayPause() }, modifier = Modifier.size(64.dp)) {
+                FilledIconButton(
+                    onClick = { PlayerManager.togglePlayPause() },
+                    modifier = Modifier.size(64.dp)
+                ) {
                     Icon(
                         if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                         contentDescription = if (isPlaying) "Pause" else "Play",
@@ -77,9 +135,36 @@ fun PlayerScreen(songId: Long, onBack: () -> Unit) {
                 }
                 Spacer(Modifier.width(16.dp))
                 IconButton(onClick = { PlayerManager.skipNext() }) {
-                    Icon(Icons.Filled.SkipNext, contentDescription = "Next", modifier = Modifier.size(36.dp))
+                    Icon(
+                        Icons.Filled.SkipNext,
+                        contentDescription = "Next",
+                        modifier = Modifier.size(36.dp)
+                    )
                 }
             }
+
+            Spacer(Modifier.height(32.dp))
+
+            KaizenControls(
+                state = kaizen,
+                onSelect = { status ->
+                    scope.launch {
+                        val base = kaizen ?: TrackState(songId = activeId, status = status)
+                        db.trackStateDao().upsert(
+                            base.copy(status = status, updatedAt = System.currentTimeMillis())
+                        )
+                    }
+                },
+                onTargetChange = { target ->
+                    kaizen?.let { current ->
+                        scope.launch {
+                            db.trackStateDao().upsert(
+                                current.copy(targetRepeats = target.coerceIn(2, 4))
+                            )
+                        }
+                    }
+                }
+            )
         }
     }
 
@@ -89,13 +174,57 @@ fun PlayerScreen(songId: Long, onBack: () -> Unit) {
                 notes = notes,
                 onAddNote = { text ->
                     scope.launch {
-                        db.noteDao().insertNote(Note(songId = songId, text = text))
+                        db.noteDao().insertNote(Note(songId = activeId, text = text))
                     }
                 },
                 onDeleteNote = { note ->
                     scope.launch { db.noteDao().deleteNote(note) }
                 }
             )
+        }
+    }
+}
+
+@Composable
+private fun KaizenControls(
+    state: TrackState?,
+    onSelect: (KaizenStatus) -> Unit,
+    onTargetChange: (Int) -> Unit
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            KaizenStatus.entries.forEach { status ->
+                FilterChip(
+                    selected = state?.status == status,
+                    onClick = { onSelect(status) },
+                    label = { Text(status.label) }
+                )
+            }
+        }
+
+        if (state != null && state.status == KaizenStatus.REPEAT) {
+            Spacer(Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(
+                    onClick = { onTargetChange(state.targetRepeats - 1) },
+                    enabled = state.targetRepeats > 2
+                ) {
+                    Icon(Icons.Filled.Remove, contentDescription = "Fewer repeats")
+                }
+                Text(
+                    "Repeat ${state.completedRepeats} of ${state.targetRepeats}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                IconButton(
+                    onClick = { onTargetChange(state.targetRepeats + 1) },
+                    enabled = state.targetRepeats < 4
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = "More repeats")
+                }
+            }
         }
     }
 }
@@ -108,7 +237,11 @@ private fun NotesSheetContent(
 ) {
     var text by remember { mutableStateOf("") }
 
-    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
         Text("Notes", style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(12.dp))
 
@@ -126,7 +259,7 @@ private fun NotesSheetContent(
                     text = ""
                 }
             }) {
-                Icon(Icons.Filled.Send, contentDescription = "Save note")
+                Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Save note")
             }
         }
 
