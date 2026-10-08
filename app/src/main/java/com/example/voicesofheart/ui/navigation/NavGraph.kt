@@ -2,12 +2,15 @@ package com.example.voicesofheart.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.example.voicesofheart.ui.home.HomeScreen
-import com.example.voicesofheart.ui.library.LibraryScreen
-import com.example.voicesofheart.ui.kaizen.KaizenScreen
+import androidx.navigation.navArgument
 import com.example.voicesofheart.ui.folders.FoldersScreen
+import com.example.voicesofheart.ui.home.HomeScreen
+import com.example.voicesofheart.ui.kaizen.KaizenScreen
+import com.example.voicesofheart.ui.library.LibraryScreen
+import com.example.voicesofheart.ui.player.PlayerScreen
 
 @Composable
 fun NavGraph(navController: NavHostController) {
@@ -16,5 +19,12 @@ fun NavGraph(navController: NavHostController) {
         composable(Screen.Library.route) { LibraryScreen() }
         composable(Screen.Kaizen.route) { KaizenScreen() }
         composable(Screen.Folders.route) { FoldersScreen() }
+        composable(
+            route = Screen.Player.route,
+            arguments = listOf(navArgument("songId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val songId = backStackEntry.arguments?.getLong("songId") ?: -1L
+            PlayerScreen(songId = songId, onBack = { navController.popBackStack() })
+        }
     }
 }
