@@ -112,7 +112,9 @@ fun PlayerScreen(songId: Long, onBack: () -> Unit) {
                 currentSong?.artist ?: "",
                 style = MaterialTheme.typography.bodyMedium
             )
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(24.dp))
+            SeekBar(modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(16.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { PlayerManager.skipPrevious() }) {

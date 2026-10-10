@@ -82,6 +82,14 @@ object PlayerManager {
     fun skipNext() = exoPlayer?.seekToNext()
     fun skipPrevious() = exoPlayer?.seekToPrevious()
 
+    fun currentPosition(): Long = exoPlayer?.currentPosition ?: 0L
+
+    fun duration(): Long = exoPlayer?.duration?.takeIf { it > 0 } ?: 0L
+
+    fun seekTo(positionMs: Long) {
+        exoPlayer?.seekTo(positionMs)
+    }
+
     private fun recordCompletion(song: Song) {
         val ctx = appContext ?: return
         scope.launch {
