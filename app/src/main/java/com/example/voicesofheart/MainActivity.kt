@@ -29,6 +29,11 @@ class MainActivity : ComponentActivity() {
             VoicesOfHeartApp()
         }
     }
+
+    override fun onStop() {
+        super.onStop()
+        PlayerManager.saveState()
+    }
 }
 
 @Composable
