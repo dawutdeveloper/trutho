@@ -29,11 +29,6 @@ class MainActivity : ComponentActivity() {
             VoicesOfHeartApp()
         }
     }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        PlayerManager.release()
-    }
 }
 
 @Composable
