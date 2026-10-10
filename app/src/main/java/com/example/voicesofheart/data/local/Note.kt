@@ -8,5 +8,6 @@ data class Note(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val songId: Long,
     val text: String,
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val timestampMs: Long? = null
 )

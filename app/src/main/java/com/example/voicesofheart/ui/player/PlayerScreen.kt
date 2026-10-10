@@ -1,5 +1,6 @@
 package com.example.voicesofheart.ui.player
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -7,8 +8,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -72,10 +73,10 @@ fun PlayerScreen(songId: Long, onBack: () -> Unit) {
     val activeId = currentSong?.id ?: songId
 
     var showNotes by remember { mutableStateOf(false) }
-    val notes by remember(activeId) { db.noteDao().getNotesForSong(activeId) }
-        .collectAsState(initial = emptyList())
-    val kaizen by remember(activeId) { db.trackStateDao().observe(activeId) }
-        .collectAsState(initial = null)
+    val notesFlow = remember(activeId) { db.noteDao().getNotesForSong(activeId) }
+    val kaizenFlow = remember(activeId) { db.trackStateDao().observe(activeId) }
+    val notes by notesFlow.collectAsState(initial = emptyList())
+    val kaizen by kaizenFlow.collectAsState(initial = null)
 
     Scaffold(
         topBar = {
@@ -155,8 +156,13 @@ fun PlayerScreen(songId: Long, onBack: () -> Unit) {
                         db.trackStateDao().upsert(
                             base.copy(
                                 status = status,
-                                completedRepeats = if (status == KaizenStatus.REPEAT && base.status != KaizenStatus.REPEAT) 0
-                                else base.completedRepeats,
+                                completedRepeats = if (status == KaizenStatus.REPEAT &&
+                                    base.status != KaizenStatus.REPEAT
+                                ) {
+                                    0
+                                } else {
+                                    base.completedRepeats
+                                },
                                 updatedAt = System.currentTimeMillis()
                             )
                         )
@@ -179,13 +185,20 @@ fun PlayerScreen(songId: Long, onBack: () -> Unit) {
         ModalBottomSheet(onDismissRequest = { showNotes = false }) {
             NotesSheetContent(
                 notes = notes,
-                onAddNote = { text ->
+                onAddNote = { text, stampMs ->
                     scope.launch {
-                        db.noteDao().insertNote(Note(songId = activeId, text = text))
+                        db.noteDao().insertNote(
+                            Note(songId = activeId, text = text, timestampMs = stampMs)
+                        )
                     }
                 },
                 onDeleteNote = { note ->
                     scope.launch { db.noteDao().deleteNote(note) }
+                },
+                onJump = { ms ->
+                    PlayerManager.seekTo(ms)
+                    if (!isPlaying) PlayerManager.togglePlayPause()
+                    showNotes = false
                 }
             )
         }
@@ -239,10 +252,14 @@ private fun KaizenControls(
 @Composable
 private fun NotesSheetContent(
     notes: List<Note>,
-    onAddNote: (String) -> Unit,
-    onDeleteNote: (Note) -> Unit
+    onAddNote: (String, Long?) -> Unit,
+    onDeleteNote: (Note) -> Unit,
+    onJump: (Long) -> Unit
 ) {
     var text by remember { mutableStateOf("") }
+    // The time is captured when the sheet opens, which is the moment you wanted to note
+    var stampMs by remember { mutableStateOf<Long?>(PlayerManager.currentPosition()) }
+    val stamp = stampMs
 
     Column(
         modifier = Modifier
@@ -257,12 +274,13 @@ private fun NotesSheetContent(
                 value = text,
                 onValueChange = { text = it },
                 modifier = Modifier.weight(1f),
+                maxLines = 4,
                 placeholder = { Text("Write a note about this song...") }
             )
             Spacer(Modifier.width(8.dp))
             IconButton(onClick = {
                 if (text.isNotBlank()) {
-                    onAddNote(text.trim())
+                    onAddNote(text.trim(), stamp)
                     text = ""
                 }
             }) {
@@ -270,16 +288,47 @@ private fun NotesSheetContent(
             }
         }
 
+        Spacer(Modifier.height(8.dp))
+
+        FilterChip(
+            selected = stamp != null,
+            onClick = {
+                stampMs = if (stamp == null) PlayerManager.currentPosition() else null
+            },
+            label = {
+                Text(if (stamp != null) "At ${formatTime(stamp)}" else "No timestamp")
+            }
+        )
+
         Spacer(Modifier.height(16.dp))
 
         LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
-            items(notes) { note ->
+            items(notes, key = { it.id }) { note ->
+                val ms = note.timestampMs
+                val timeLabel: (@Composable () -> Unit)? = if (ms != null) {
+                    {
+                        Text(
+                            formatTime(ms),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                } else {
+                    null
+                }
+
                 ListItem(
+                    leadingContent = timeLabel,
                     headlineContent = { Text(note.text) },
                     trailingContent = {
                         IconButton(onClick = { onDeleteNote(note) }) {
                             Icon(Icons.Filled.Delete, contentDescription = "Delete note")
                         }
+                    },
+                    modifier = if (ms != null) {
+                        Modifier.clickable { onJump(ms) }
+                    } else {
+                        Modifier
                     }
                 )
                 HorizontalDivider()
