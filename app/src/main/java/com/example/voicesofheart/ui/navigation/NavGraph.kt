@@ -6,6 +6,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.example.voicesofheart.ui.folders.FolderDetailScreen
 import com.example.voicesofheart.ui.folders.FoldersScreen
 import com.example.voicesofheart.ui.home.HomeScreen
 import com.example.voicesofheart.ui.kaizen.KaizenScreen
@@ -18,7 +19,21 @@ fun NavGraph(navController: NavHostController) {
         composable(Screen.Home.route) { HomeScreen() }
         composable(Screen.Library.route) { LibraryScreen() }
         composable(Screen.Kaizen.route) { KaizenScreen() }
-        composable(Screen.Folders.route) { FoldersScreen() }
+
+        composable(Screen.Folders.route) {
+            FoldersScreen(onOpenFolder = { id ->
+                navController.navigate(Screen.FolderDetail.createRoute(id))
+            })
+        }
+
+        composable(
+            route = Screen.FolderDetail.route,
+            arguments = listOf(navArgument("folderId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val folderId = backStackEntry.arguments?.getLong("folderId") ?: -1L
+            FolderDetailScreen(folderId = folderId, onBack = { navController.popBackStack() })
+        }
+
         composable(
             route = Screen.Player.route,
             arguments = listOf(navArgument("songId") { type = NavType.LongType })

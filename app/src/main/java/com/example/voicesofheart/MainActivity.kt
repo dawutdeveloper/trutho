@@ -47,7 +47,9 @@ fun VoicesOfHeartApp() {
                 Column {
                     MiniPlayer(onClick = {
                         currentSongState?.let { song ->
-                            navController.navigate(Screen.Player.createRoute(song.id))
+                            navController.navigate(Screen.Player.createRoute(song.id)) {
+                                launchSingleTop = true
+                            }
                         }
                     })
                     BottomNavBar(navController)
