@@ -1,6 +1,5 @@
 package com.example.voicesofheart.ui.kaizen
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,7 +12,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +30,7 @@ import com.example.voicesofheart.data.local.KaizenStatus
 import com.example.voicesofheart.data.media.SongScanner
 import com.example.voicesofheart.data.player.PlayerManager
 import com.example.voicesofheart.domain.Song
+import com.example.voicesofheart.ui.components.SongRow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -39,7 +38,11 @@ import kotlinx.coroutines.withContext
 fun KaizenScreen() {
     val context = LocalContext.current
     val db = remember { AppDatabase.getInstance(context) }
-    val states by db.trackStateDao().observeAll().collectAsState(initial = emptyList())
+    val statesFlow = remember { db.trackStateDao().observeAll() }
+    val states by statesFlow.collectAsState(initial = emptyList())
+
+    val currentSong by PlayerManager.currentSong.collectAsState()
+    val isPlaying by PlayerManager.isPlaying.collectAsState()
 
     var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
     LaunchedEffect(Unit) {
@@ -76,20 +79,17 @@ fun KaizenScreen() {
             }
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(items) { (song, state) ->
-                    ListItem(
-                        headlineContent = {
-                            Text(song.title, style = MaterialTheme.typography.titleMedium)
+                items(items, key = { it.first.id }) { (song, state) ->
+                    SongRow(
+                        song = song,
+                        isCurrent = currentSong?.id == song.id,
+                        isPlaying = isPlaying,
+                        extraInfo = if (state.status == KaizenStatus.REPEAT) {
+                            "Repeat ${state.completedRepeats} of ${state.targetRepeats}"
+                        } else {
+                            null
                         },
-                        supportingContent = {
-                            val extra = if (state.status == KaizenStatus.REPEAT) {
-                                "  |  ${state.completedRepeats} of ${state.targetRepeats}"
-                            } else ""
-                            Text(song.artist + extra, style = MaterialTheme.typography.bodyMedium)
-                        },
-                        modifier = Modifier.clickable {
-                            PlayerManager.playSong(song, items.map { it.first })
-                        }
+                        onClick = { PlayerManager.playSong(song, items.map { it.first }) }
                     )
                     HorizontalDivider()
                 }

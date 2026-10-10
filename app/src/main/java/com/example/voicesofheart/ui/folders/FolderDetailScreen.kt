@@ -1,6 +1,5 @@
 package com.example.voicesofheart.ui.folders
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,7 +17,6 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,6 +36,7 @@ import com.example.voicesofheart.data.local.AppDatabase
 import com.example.voicesofheart.data.media.SongScanner
 import com.example.voicesofheart.data.player.PlayerManager
 import com.example.voicesofheart.domain.Song
+import com.example.voicesofheart.ui.components.SongRow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -52,6 +51,9 @@ fun FolderDetailScreen(folderId: Long, onBack: () -> Unit) {
     val idsFlow = remember(folderId) { db.folderDao().observeSongIds(folderId) }
     val folder by folderFlow.collectAsState(initial = null)
     val songIds by idsFlow.collectAsState(initial = emptyList())
+
+    val currentSong by PlayerManager.currentSong.collectAsState()
+    val isPlaying by PlayerManager.isPlaying.collectAsState()
 
     var allSongs by remember { mutableStateOf<List<Song>>(emptyList()) }
     LaunchedEffect(Unit) {
@@ -95,21 +97,18 @@ fun FolderDetailScreen(folderId: Long, onBack: () -> Unit) {
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 items(songs, key = { it.id }) { song ->
-                    ListItem(
-                        headlineContent = {
-                            Text(song.title, style = MaterialTheme.typography.titleMedium)
-                        },
-                        supportingContent = {
-                            Text(song.artist, style = MaterialTheme.typography.bodyMedium)
-                        },
-                        trailingContent = {
+                    SongRow(
+                        song = song,
+                        isCurrent = currentSong?.id == song.id,
+                        isPlaying = isPlaying,
+                        onClick = { PlayerManager.playSong(song, songs) },
+                        trailing = {
                             IconButton(onClick = {
                                 scope.launch { db.folderDao().removeSong(folderId, song.id) }
                             }) {
                                 Icon(Icons.Filled.Close, contentDescription = "Remove from folder")
                             }
-                        },
-                        modifier = Modifier.clickable { PlayerManager.playSong(song, songs) }
+                        }
                     )
                     HorizontalDivider()
                 }
