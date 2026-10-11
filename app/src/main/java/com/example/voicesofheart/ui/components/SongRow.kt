@@ -1,9 +1,12 @@
 package com.example.voicesofheart.ui.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
@@ -14,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import com.example.voicesofheart.domain.Song
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SongRow(
     song: Song,
@@ -22,6 +26,9 @@ fun SongRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     extraInfo: String? = null,
+    selectionMode: Boolean = false,
+    isSelected: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null
 ) {
     val titleColor = if (isCurrent) {
@@ -29,22 +36,35 @@ fun SongRow(
     } else {
         MaterialTheme.colorScheme.onSurface
     }
-    val containerColor = if (isCurrent) {
-        MaterialTheme.colorScheme.primaryContainer
-    } else {
-        ListItemDefaults.containerColor
+
+    val containerColor = when {
+        isSelected -> MaterialTheme.colorScheme.surfaceVariant
+        isCurrent -> MaterialTheme.colorScheme.primaryContainer
+        else -> ListItemDefaults.containerColor
     }
 
-    val leading: (@Composable () -> Unit)? = if (isCurrent) {
-        {
-            Icon(
-                imageVector = if (isPlaying) Icons.Filled.GraphicEq else Icons.Filled.Pause,
-                contentDescription = if (isPlaying) "Playing" else "Paused",
-                tint = MaterialTheme.colorScheme.primary
-            )
+    val leading: (@Composable () -> Unit)? = when {
+        selectionMode -> {
+            {
+                Checkbox(checked = isSelected, onCheckedChange = null)
+            }
         }
+        isCurrent -> {
+            {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Filled.GraphicEq else Icons.Filled.Pause,
+                    contentDescription = if (isPlaying) "Playing" else "Paused",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+        else -> null
+    }
+
+    val clickModifier = if (onLongClick != null) {
+        modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
     } else {
-        null
+        modifier.clickable(onClick = onClick)
     }
 
     ListItem(
@@ -68,6 +88,6 @@ fun SongRow(
         leadingContent = leading,
         trailingContent = trailing,
         colors = ListItemDefaults.colors(containerColor = containerColor),
-        modifier = modifier.clickable(onClick = onClick)
+        modifier = clickModifier
     )
 }

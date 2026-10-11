@@ -1,6 +1,5 @@
 package com.example.voicesofheart.data.local
 
-
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
@@ -19,4 +18,7 @@ interface TrackStateDao {
 
     @Upsert
     suspend fun upsert(state: TrackState)
+
+    @Query("DELETE FROM track_states WHERE songId IN (:songIds)")
+    suspend fun deleteForSongs(songIds: List<Long>)
 }

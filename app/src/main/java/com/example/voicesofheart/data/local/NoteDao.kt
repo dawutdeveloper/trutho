@@ -20,4 +20,7 @@ interface NoteDao {
 
     @Delete
     suspend fun deleteNote(note: Note)
+
+    @Query("DELETE FROM notes WHERE songId IN (:songIds)")
+    suspend fun deleteForSongs(songIds: List<Long>)
 }

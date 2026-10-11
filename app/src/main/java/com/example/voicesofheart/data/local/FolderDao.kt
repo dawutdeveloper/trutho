@@ -37,9 +37,31 @@ abstract class FolderDao {
     @Query("DELETE FROM folders WHERE id = :folderId")
     abstract suspend fun deleteFolderRow(folderId: Long)
 
+    @Query("DELETE FROM folder_songs WHERE songId IN (:songIds)")
+    abstract suspend fun removeSongsEverywhere(songIds: List<Long>)
+
     @Transaction
     open suspend fun deleteFolder(folderId: Long) {
         deleteLinks(folderId)
         deleteFolderRow(folderId)
+    }
+
+    @Transaction
+    open suspend fun addSongs(folderId: Long, songIds: List<Long>) {
+        val now = System.currentTimeMillis()
+        songIds.forEachIndexed { index, songId ->
+            addSong(FolderSong(folderId = folderId, songId = songId, addedAt = now + index))
+        }
+    }
+
+    @Transaction
+    open suspend fun removeSongs(folderId: Long, songIds: List<Long>) {
+        songIds.forEach { songId -> removeSong(folderId, songId) }
+    }
+
+    @Transaction
+    open suspend fun moveSongs(fromFolderId: Long, toFolderId: Long, songIds: List<Long>) {
+        addSongs(toFolderId, songIds)
+        removeSongs(fromFolderId, songIds)
     }
 }

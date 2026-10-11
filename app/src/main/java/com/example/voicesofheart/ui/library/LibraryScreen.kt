@@ -1,11 +1,15 @@
 package com.example.voicesofheart.ui.library
 
 import android.Manifest
+import android.app.Activity
 import android.content.pm.PackageManager
+import android.os.Build
+import android.provider.MediaStore
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,7 +30,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -48,10 +51,15 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.example.voicesofheart.data.local.AppDatabase
-import com.example.voicesofheart.data.local.FolderSong
+import com.example.voicesofheart.data.local.forgetSongs
+import com.example.voicesofheart.data.local.setKaizenStatus
 import com.example.voicesofheart.data.media.SongScanner
 import com.example.voicesofheart.data.player.PlayerManager
 import com.example.voicesofheart.domain.Song
+import com.example.voicesofheart.ui.components.FolderPickerDialog
+import com.example.voicesofheart.ui.components.KaizenStatusDialog
+import com.example.voicesofheart.ui.components.SelectionAction
+import com.example.voicesofheart.ui.components.SelectionBar
 import com.example.voicesofheart.ui.components.SongRow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -78,11 +86,16 @@ fun LibraryScreen() {
 
     var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
     var loaded by remember { mutableStateOf(false) }
-    var songToAdd by remember { mutableStateOf<Song?>(null) }
 
     var query by rememberSaveable { mutableStateOf("") }
     var sortName by rememberSaveable { mutableStateOf(SortOption.TITLE.name) }
     val sort = SortOption.valueOf(sortName)
+
+    var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    var addTargets by remember { mutableStateOf<List<Song>?>(null) }
+    var showKaizenPicker by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    var pendingDelete by remember { mutableStateOf<List<Song>>(emptyList()) }
 
     var hasPermission by remember {
         mutableStateOf(
@@ -92,13 +105,36 @@ fun LibraryScreen() {
         )
     }
 
-    val launcher = rememberLauncherForActivityResult(
+    val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted -> hasPermission = granted }
 
+    // Android shows its own confirmation when files are deleted
+    val deleteLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        val deleted = pendingDelete
+        pendingDelete = emptyList()
+        if (result.resultCode == Activity.RESULT_OK && deleted.isNotEmpty()) {
+            scope.launch {
+                val ids = deleted.map { it.id }
+                withContext(Dispatchers.IO) { db.forgetSongs(ids) }
+                val idSet = ids.toSet()
+                songs = songs.filter { it.id !in idSet }
+                PlayerManager.onSongsDeleted(deleted)
+                selectedIds = emptySet()
+                Toast.makeText(
+                    context,
+                    if (deleted.size == 1) "Song deleted" else "${deleted.size} songs deleted",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
     LaunchedEffect(hasPermission) {
         if (!hasPermission) {
-            launcher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+            permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
         } else {
             songs = withContext(Dispatchers.IO) { SongScanner(context).scanSongs() }
             loaded = true
@@ -124,6 +160,15 @@ fun LibraryScreen() {
         }
     }
 
+    val selectionMode = selectedIds.isNotEmpty()
+    val selectedSongs = visible.filter { it.id in selectedIds }
+
+    val toggle: (Long) -> Unit = { id ->
+        selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
+    }
+
+    BackHandler(enabled = selectionMode) { selectedIds = emptySet() }
+
     when {
         !hasPermission -> {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -145,40 +190,55 @@ fun LibraryScreen() {
 
         else -> {
             Column(modifier = Modifier.fillMaxSize()) {
-                val clearButton: (@Composable () -> Unit)? = if (query.isNotEmpty()) {
-                    {
-                        IconButton(onClick = { query = "" }) {
-                            Icon(Icons.Filled.Close, contentDescription = "Clear search")
-                        }
-                    }
-                } else {
-                    null
-                }
-
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    singleLine = true,
-                    placeholder = { Text("Search songs or artists") },
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                    trailingIcon = clearButton,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    SortOption.entries.forEach { option ->
-                        FilterChip(
-                            selected = sort == option,
-                            onClick = { sortName = option.name },
-                            label = { Text(option.label) }
+                if (selectionMode) {
+                    SelectionBar(
+                        count = selectedIds.size,
+                        onClose = { selectedIds = emptySet() },
+                        onSelectAll = { selectedIds = visible.map { it.id }.toSet() },
+                        actions = listOf(
+                            SelectionAction("Add to folder") { addTargets = selectedSongs },
+                            SelectionAction("Kaizen") { showKaizenPicker = true },
+                            SelectionAction("Delete", isDestructive = true) {
+                                showDeleteConfirm = true
+                            }
                         )
+                    )
+                } else {
+                    val clearButton: (@Composable () -> Unit)? = if (query.isNotEmpty()) {
+                        {
+                            IconButton(onClick = { query = "" }) {
+                                Icon(Icons.Filled.Close, contentDescription = "Clear search")
+                            }
+                        }
+                    } else {
+                        null
+                    }
+
+                    OutlinedTextField(
+                        value = query,
+                        onValueChange = { query = it },
+                        singleLine = true,
+                        placeholder = { Text("Search songs or artists") },
+                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                        trailingIcon = clearButton,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        SortOption.entries.forEach { option ->
+                            FilterChip(
+                                selected = sort == option,
+                                onClick = { sortName = option.name },
+                                label = { Text(option.label) }
+                            )
+                        }
                     }
                 }
 
@@ -201,19 +261,34 @@ fun LibraryScreen() {
                             .weight(1f)
                     ) {
                         items(visible, key = { it.id }) { song ->
-                            SongRow(
-                                song = song,
-                                isCurrent = currentSong?.id == song.id,
-                                isPlaying = isPlaying,
-                                onClick = { PlayerManager.playSong(song, visible) },
-                                trailing = {
-                                    IconButton(onClick = { songToAdd = song }) {
+                            val addButton: (@Composable () -> Unit)? = if (selectionMode) {
+                                null
+                            } else {
+                                {
+                                    IconButton(onClick = { addTargets = listOf(song) }) {
                                         Icon(
                                             Icons.AutoMirrored.Filled.PlaylistAdd,
                                             contentDescription = "Add to folder"
                                         )
                                     }
                                 }
+                            }
+
+                            SongRow(
+                                song = song,
+                                isCurrent = currentSong?.id == song.id,
+                                isPlaying = isPlaying,
+                                selectionMode = selectionMode,
+                                isSelected = song.id in selectedIds,
+                                onClick = {
+                                    if (selectionMode) {
+                                        toggle(song.id)
+                                    } else {
+                                        PlayerManager.playSong(song, visible)
+                                    }
+                                },
+                                onLongClick = { toggle(song.id) },
+                                trailing = addButton
                             )
                             HorizontalDivider()
                         }
@@ -223,38 +298,74 @@ fun LibraryScreen() {
         }
     }
 
-    songToAdd?.let { song ->
+    addTargets?.let { targets ->
+        FolderPickerDialog(
+            title = if (targets.size == 1) "Add to folder" else "Add ${targets.size} songs to folder",
+            folders = folders,
+            onPick = { folder ->
+                val ids = targets.map { it.id }
+                scope.launch { db.folderDao().addSongs(folder.id, ids) }
+                Toast.makeText(context, "Added to ${folder.name}", Toast.LENGTH_SHORT).show()
+                addTargets = null
+                selectedIds = emptySet()
+            },
+            onDismiss = { addTargets = null }
+        )
+    }
+
+    if (showKaizenPicker) {
+        KaizenStatusDialog(
+            onPick = { status ->
+                val ids = selectedSongs.map { it.id }
+                scope.launch { db.setKaizenStatus(ids, status) }
+                Toast.makeText(context, "Marked as ${status.label}", Toast.LENGTH_SHORT).show()
+                showKaizenPicker = false
+                selectedIds = emptySet()
+            },
+            onDismiss = { showKaizenPicker = false }
+        )
+    }
+
+    if (showDeleteConfirm) {
+        val count = selectedSongs.size
         AlertDialog(
-            onDismissRequest = { songToAdd = null },
-            title = { Text("Add to folder") },
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text(if (count == 1) "Delete this song?" else "Delete $count songs?") },
             text = {
-                if (folders.isEmpty()) {
-                    Text("No folders yet. Create one in the Folders tab first.")
-                } else {
-                    LazyColumn {
-                        items(folders, key = { it.id }) { folder ->
-                            ListItem(
-                                headlineContent = { Text(folder.name) },
-                                modifier = Modifier.clickable {
-                                    scope.launch {
-                                        db.folderDao().addSong(
-                                            FolderSong(folderId = folder.id, songId = song.id)
-                                        )
-                                    }
-                                    Toast.makeText(
-                                        context,
-                                        "Added to ${folder.name}",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                    songToAdd = null
-                                }
-                            )
-                        }
-                    }
-                }
+                Text(
+                    "The audio files will be permanently deleted from your phone, " +
+                            "together with their notes and Kaizen status. This can't be undone."
+                )
             },
             confirmButton = {
-                TextButton(onClick = { songToAdd = null }) { Text("Close") }
+                TextButton(onClick = {
+                    showDeleteConfirm = false
+                    val targets = selectedSongs
+                    if (targets.isNotEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        try {
+                            pendingDelete = targets
+                            val request = MediaStore.createDeleteRequest(
+                                context.contentResolver,
+                                targets.map { it.uri }
+                            )
+                            deleteLauncher.launch(
+                                IntentSenderRequest.Builder(request.intentSender).build()
+                            )
+                        } catch (e: Exception) {
+                            pendingDelete = emptyList()
+                            Toast.makeText(
+                                context,
+                                "Could not start deleting",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
             }
         )
     }

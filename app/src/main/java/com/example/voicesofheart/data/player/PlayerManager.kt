@@ -286,6 +286,39 @@ object PlayerManager {
         }
     }
 
+    // Called after songs were deleted from the phone
+    fun onSongsDeleted(deleted: List<Song>) {
+        val c = controller ?: return
+        val deletedMediaIds = deleted.map { it.uri.toString() }.toSet()
+        val deletedIds = deleted.map { it.id }.toSet()
+
+        val currentId = _currentSong.value?.id
+        val currentDeleted = currentId != null && currentId in deletedIds
+        val remaining = playlist.filter { it.id !in deletedIds }
+
+        if (currentDeleted || remaining.isEmpty()) {
+            // The playing song is gone: stop and clear the queue
+            c.stop()
+            c.clearMediaItems()
+            playlist = emptyList()
+            _currentSong.value = null
+            endedHandled = false
+            appContext
+                ?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                ?.edit()
+                ?.clear()
+                ?.apply()
+        } else {
+            // Remove from the end so earlier positions stay valid
+            for (i in c.mediaItemCount - 1 downTo 0) {
+                if (c.getMediaItemAt(i).mediaId in deletedMediaIds) {
+                    c.removeMediaItem(i)
+                }
+            }
+            playlist = remaining
+        }
+    }
+
     fun release() {
         stopTicker()
         controller?.release()
