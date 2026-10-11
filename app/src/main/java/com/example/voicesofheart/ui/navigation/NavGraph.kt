@@ -16,7 +16,13 @@ import com.example.voicesofheart.ui.player.PlayerScreen
 @Composable
 fun NavGraph(navController: NavHostController) {
     NavHost(navController = navController, startDestination = Screen.Home.route) {
-        composable(Screen.Home.route) { HomeScreen() }
+        composable(Screen.Home.route) {
+            HomeScreen(onOpenPlayer = { id ->
+                navController.navigate(Screen.Player.createRoute(id)) {
+                    launchSingleTop = true
+                }
+            })
+        }
         composable(Screen.Library.route) { LibraryScreen() }
         composable(Screen.Kaizen.route) { KaizenScreen() }
 

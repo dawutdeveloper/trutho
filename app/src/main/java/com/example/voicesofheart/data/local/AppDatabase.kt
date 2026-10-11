@@ -8,14 +8,21 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [Note::class, TrackState::class, Folder::class, FolderSong::class],
-    version = 4,
+    entities = [
+        Note::class,
+        TrackState::class,
+        Folder::class,
+        FolderSong::class,
+        ListenLog::class
+    ],
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao
     abstract fun trackStateDao(): TrackStateDao
     abstract fun folderDao(): FolderDao
+    abstract fun listenLogDao(): ListenLogDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
@@ -58,6 +65,17 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `listen_log` (" +
+                            "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, " +
+                            "`songId` INTEGER NOT NULL, " +
+                            "`listenedAt` INTEGER NOT NULL)"
+                )
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -65,7 +83,12 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "voicesofheart_db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(
+                        MIGRATION_1_2,
+                        MIGRATION_2_3,
+                        MIGRATION_3_4,
+                        MIGRATION_4_5
+                    )
                     .build()
                     .also { INSTANCE = it }
             }

@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.example.voicesofheart.data.local.ListenLog
 
 object PlayerManager {
 
@@ -254,7 +255,12 @@ object PlayerManager {
     private fun recordCompletion(song: Song) {
         val ctx = appContext ?: return
         ioScope.launch {
-            val dao = AppDatabase.getInstance(ctx).trackStateDao()
+            val db = AppDatabase.getInstance(ctx)
+
+            // Every full listen goes into the listening log
+            db.listenLogDao().insert(ListenLog(songId = song.id))
+
+            val dao = db.trackStateDao()
             val state = dao.get(song.id) ?: return@launch
             val now = System.currentTimeMillis()
 
