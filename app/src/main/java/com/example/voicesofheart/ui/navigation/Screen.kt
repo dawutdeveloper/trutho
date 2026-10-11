@@ -2,6 +2,7 @@ package com.example.voicesofheart.ui.navigation
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
@@ -13,6 +14,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     object Library : Screen("library", "Library", Icons.Filled.LibraryMusic)
     object Kaizen : Screen("kaizen", "Kaizen", Icons.AutoMirrored.Filled.TrendingUp)
     object Folders : Screen("folders", "Folders", Icons.Filled.Folder)
+    object Stats : Screen("stats", "Stats", Icons.Filled.BarChart)
 
     object Player : Screen("player/{songId}", "Player", Icons.Filled.PlayArrow) {
         fun createRoute(songId: Long) = "player/$songId"

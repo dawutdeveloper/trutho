@@ -1,5 +1,7 @@
 package com.example.voicesofheart.ui.home
 
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material3.IconButton
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -53,7 +55,7 @@ private fun startOfTodayMillis(): Long {
 }
 
 @Composable
-fun HomeScreen(onOpenPlayer: (Long) -> Unit) {
+fun HomeScreen(onOpenPlayer: (Long) -> Unit, onOpenStats: () -> Unit) {
     val context = LocalContext.current
     val db = remember { AppDatabase.getInstance(context) }
 
@@ -92,13 +94,23 @@ fun HomeScreen(onOpenPlayer: (Long) -> Unit) {
         contentPadding = PaddingValues(bottom = 16.dp)
     ) {
         item {
-            Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp)) {
-                Text("Voices of Heart", style = MaterialTheme.typography.headlineSmall)
-                Text(
-                    todayText,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 8.dp, top = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Voices of Heart", style = MaterialTheme.typography.headlineSmall)
+                    Text(
+                        todayText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(onClick = onOpenStats) {
+                    Icon(Icons.Filled.BarChart, contentDescription = "Stats")
+                }
             }
         }
 

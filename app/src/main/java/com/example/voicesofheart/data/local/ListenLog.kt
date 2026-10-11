@@ -9,3 +9,8 @@ data class ListenLog(
     val songId: Long,
     val listenedAt: Long = System.currentTimeMillis()
 )
+
+data class SongCount(
+    val songId: Long,
+    val count: Int
+)

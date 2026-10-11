@@ -12,16 +12,24 @@ import com.example.voicesofheart.ui.home.HomeScreen
 import com.example.voicesofheart.ui.kaizen.KaizenScreen
 import com.example.voicesofheart.ui.library.LibraryScreen
 import com.example.voicesofheart.ui.player.PlayerScreen
+import com.example.voicesofheart.ui.stats.StatsScreen
 
 @Composable
 fun NavGraph(navController: NavHostController) {
     NavHost(navController = navController, startDestination = Screen.Home.route) {
         composable(Screen.Home.route) {
-            HomeScreen(onOpenPlayer = { id ->
-                navController.navigate(Screen.Player.createRoute(id)) {
-                    launchSingleTop = true
+            HomeScreen(
+                onOpenPlayer = { id ->
+                    navController.navigate(Screen.Player.createRoute(id)) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenStats = {
+                    navController.navigate(Screen.Stats.route) {
+                        launchSingleTop = true
+                    }
                 }
-            })
+            )
         }
         composable(Screen.Library.route) { LibraryScreen() }
         composable(Screen.Kaizen.route) { KaizenScreen() }
@@ -30,6 +38,10 @@ fun NavGraph(navController: NavHostController) {
             FoldersScreen(onOpenFolder = { id ->
                 navController.navigate(Screen.FolderDetail.createRoute(id))
             })
+        }
+
+        composable(Screen.Stats.route) {
+            StatsScreen(onBack = { navController.popBackStack() })
         }
 
         composable(

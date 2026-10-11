@@ -12,4 +12,13 @@ interface ListenLogDao {
 
     @Query("SELECT COUNT(*) FROM listen_log WHERE listenedAt >= :since")
     fun observeCountSince(since: Long): Flow<Int>
+
+    @Query("SELECT listenedAt FROM listen_log ORDER BY listenedAt DESC")
+    fun observeAllTimestamps(): Flow<List<Long>>
+
+    @Query(
+        "SELECT songId, COUNT(*) AS count FROM listen_log " +
+                "GROUP BY songId ORDER BY count DESC, MAX(listenedAt) DESC LIMIT 10"
+    )
+    fun observeTopSongs(): Flow<List<SongCount>>
 }
