@@ -32,7 +32,8 @@ fun BottomNavBar(navController: NavController) {
                         restoreState = true
                     }
                 },
-                icon = { Icon(screen.icon, contentDescription = screen.label) },
+                // The label below already names the tab, so the icon stays silent for TalkBack
+                icon = { Icon(screen.icon, contentDescription = null) },
                 label = { Text(screen.label) }
             )
         }

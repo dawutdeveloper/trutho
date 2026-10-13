@@ -4,12 +4,24 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.example.voicesofheart.data.local.Folder
 import com.example.voicesofheart.data.local.KaizenStatus
 
@@ -31,7 +43,14 @@ fun FolderPickerDialog(
                     items(folders, key = { it.id }) { folder ->
                         ListItem(
                             headlineContent = { Text(folder.name) },
-                            modifier = Modifier.clickable { onPick(folder) }
+                            leadingContent = {
+                                Icon(Icons.Filled.Folder, contentDescription = null)
+                            },
+                            // Transparent so the row blends into the dialog surface
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                            modifier = Modifier
+                                .clip(MaterialTheme.shapes.medium)
+                                .clickable { onPick(folder) }
                         )
                     }
                 }
@@ -41,6 +60,13 @@ fun FolderPickerDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
+}
+
+private fun KaizenStatus.icon(): ImageVector = when (this) {
+    KaizenStatus.MUST_LISTEN -> Icons.Filled.Bookmark
+    KaizenStatus.CURRENTLY_LISTENING -> Icons.Filled.Headphones
+    KaizenStatus.LISTENED -> Icons.Filled.CheckCircle
+    KaizenStatus.REPEAT -> Icons.Filled.Repeat
 }
 
 @Composable
@@ -56,7 +82,13 @@ fun KaizenStatusDialog(
                 KaizenStatus.entries.forEach { status ->
                     ListItem(
                         headlineContent = { Text(status.label) },
-                        modifier = Modifier.clickable { onPick(status) }
+                        leadingContent = {
+                            Icon(status.icon(), contentDescription = null)
+                        },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                        modifier = Modifier
+                            .clip(MaterialTheme.shapes.medium)
+                            .clickable { onPick(status) }
                     )
                 }
             }

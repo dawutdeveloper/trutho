@@ -3,6 +3,7 @@ package com.example.voicesofheart.ui.player
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -37,9 +38,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -50,13 +49,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.voicesofheart.data.local.AppDatabase
 import com.example.voicesofheart.data.local.KaizenStatus
 import com.example.voicesofheart.data.local.Note
 import com.example.voicesofheart.data.local.TrackState
 import com.example.voicesofheart.data.player.PlayerManager
+import com.example.voicesofheart.ui.components.SongArtwork
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,107 +78,134 @@ fun PlayerScreen(songId: Long, onBack: () -> Unit) {
     val notes by notesFlow.collectAsState(initial = emptyList())
     val kaizen by kaizenFlow.collectAsState(initial = null)
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {},
-                navigationIcon = {
-                    IconButton(onClick = { showNotes = true }) {
-                        Icon(Icons.Filled.EditNote, contentDescription = "Notes")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Close")
-                    }
-                }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp)
+    ) {
+        // Top row: Notes on the left, close on the right
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = { showNotes = true }) {
+                Icon(Icons.Filled.EditNote, contentDescription = "Notes")
+            }
+            Spacer(Modifier.weight(1f))
+            IconButton(onClick = onBack) {
+                Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Close")
+            }
+        }
+
+        // Cover: the biggest square that fits in the free space
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(vertical = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            val side = minOf(maxWidth, maxHeight)
+            SongArtwork(
+                song = currentSong,
+                modifier = Modifier.size(side)
             )
         }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
+
+        Column(modifier = Modifier.fillMaxWidth()) {
             Text(
-                currentSong?.title ?: "No song",
-                style = MaterialTheme.typography.headlineSmall,
-                textAlign = TextAlign.Center
+                currentSong?.title ?: "Nothing playing",
+                style = MaterialTheme.typography.headlineMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
             Text(
                 currentSong?.artist ?: "",
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Spacer(Modifier.height(24.dp))
-            SeekBar(modifier = Modifier.fillMaxWidth())
-            Spacer(Modifier.height(16.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { PlayerManager.skipPrevious() }) {
-                    Icon(
-                        Icons.Filled.SkipPrevious,
-                        contentDescription = "Previous",
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
-                Spacer(Modifier.width(16.dp))
-                FilledIconButton(
-                    onClick = { PlayerManager.togglePlayPause() },
-                    modifier = Modifier.size(64.dp)
-                ) {
-                    Icon(
-                        if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-                Spacer(Modifier.width(16.dp))
-                IconButton(onClick = { PlayerManager.skipNext() }) {
-                    Icon(
-                        Icons.Filled.SkipNext,
-                        contentDescription = "Next",
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(32.dp))
-
-            KaizenControls(
-                state = kaizen,
-                onSelect = { status ->
-                    scope.launch {
-                        val base = kaizen ?: TrackState(songId = activeId, status = status)
-                        db.trackStateDao().upsert(
-                            base.copy(
-                                status = status,
-                                completedRepeats = if (status == KaizenStatus.REPEAT &&
-                                    base.status != KaizenStatus.REPEAT
-                                ) {
-                                    0
-                                } else {
-                                    base.completedRepeats
-                                },
-                                updatedAt = System.currentTimeMillis()
-                            )
-                        )
-                    }
-                },
-                onTargetChange = { target ->
-                    kaizen?.let { current ->
-                        scope.launch {
-                            db.trackStateDao().upsert(
-                                current.copy(targetRepeats = target.coerceIn(2, 4))
-                            )
-                        }
-                    }
-                }
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
+
+        Spacer(Modifier.height(20.dp))
+        SeekBar(modifier = Modifier.fillMaxWidth())
+        Spacer(Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = { PlayerManager.skipPrevious() },
+                modifier = Modifier.size(56.dp)
+            ) {
+                Icon(
+                    Icons.Filled.SkipPrevious,
+                    contentDescription = "Previous",
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+            FilledIconButton(
+                onClick = { PlayerManager.togglePlayPause() },
+                modifier = Modifier.size(72.dp)
+            ) {
+                Icon(
+                    if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    modifier = Modifier.size(36.dp)
+                )
+            }
+            IconButton(
+                onClick = { PlayerManager.skipNext() },
+                modifier = Modifier.size(56.dp)
+            ) {
+                Icon(
+                    Icons.Filled.SkipNext,
+                    contentDescription = "Next",
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+        }
+
+        Spacer(Modifier.height(20.dp))
+
+        KaizenControls(
+            state = kaizen,
+            onSelect = { status ->
+                scope.launch {
+                    val base = kaizen ?: TrackState(songId = activeId, status = status)
+                    db.trackStateDao().upsert(
+                        base.copy(
+                            status = status,
+                            completedRepeats = if (status == KaizenStatus.REPEAT &&
+                                base.status != KaizenStatus.REPEAT
+                            ) {
+                                0
+                            } else {
+                                base.completedRepeats
+                            },
+                            updatedAt = System.currentTimeMillis()
+                        )
+                    )
+                }
+            },
+            onTargetChange = { target ->
+                kaizen?.let { current ->
+                    scope.launch {
+                        db.trackStateDao().upsert(
+                            current.copy(targetRepeats = target.coerceIn(2, 4))
+                        )
+                    }
+                }
+            }
+        )
+
+        Spacer(Modifier.height(16.dp))
     }
 
     if (showNotes) {
@@ -211,7 +238,10 @@ private fun KaizenControls(
     onSelect: (KaizenStatus) -> Unit,
     onTargetChange: (Int) -> Unit
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
