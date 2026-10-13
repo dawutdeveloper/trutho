@@ -11,7 +11,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -91,7 +90,7 @@ fun KaizenScreen() {
                         },
                         onClick = { PlayerManager.playSong(song, items.map { it.first }) }
                     )
-                    HorizontalDivider()
+
                 }
             }
         }

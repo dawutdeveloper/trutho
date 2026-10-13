@@ -20,7 +20,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
+
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -204,7 +204,7 @@ fun FolderDetailScreen(folderId: Long, onBack: () -> Unit) {
                         onLongClick = { toggle(song.id) },
                         trailing = removeButton
                     )
-                    HorizontalDivider()
+
                 }
             }
         }

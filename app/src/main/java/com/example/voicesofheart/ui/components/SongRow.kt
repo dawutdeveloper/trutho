@@ -5,16 +5,20 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.voicesofheart.domain.Song
@@ -40,93 +45,77 @@ fun SongRow(
     onLongClick: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null
 ) {
-    val colors = MaterialTheme.colorScheme
-    val rowShape = MaterialTheme.shapes.large
+    val shape = RoundedCornerShape(14.dp)
 
-    // Selected rows use the secondary container, the playing row the primary
-    // container. Text colors are the matching "on" colors so contrast stays
-    // correct with any palette, including Material You dynamic colors.
-    val containerColor = when {
-        isSelected -> colors.secondaryContainer
-        isCurrent -> colors.primaryContainer
+    val background = when {
+        isSelected -> MaterialTheme.colorScheme.surfaceContainerHighest
+        isCurrent -> MaterialTheme.colorScheme.surfaceContainerHigh
         else -> Color.Transparent
     }
-    val titleColor = when {
-        isSelected -> colors.onSecondaryContainer
-        isCurrent -> colors.onPrimaryContainer
-        else -> colors.onSurface
-    }
-    val artistColor = when {
-        isSelected -> colors.onSecondaryContainer
-        isCurrent -> colors.onPrimaryContainer
-        else -> colors.onSurfaceVariant
+
+    val clickModifier = if (onLongClick != null) {
+        Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
+    } else {
+        Modifier.clickable(onClick = onClick)
     }
 
-    // Leading slot: checkbox in selection mode, otherwise a rounded tile that
-    // shows the playback state of the current song or a music note.
-    val leading: @Composable () -> Unit = {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+            .clip(shape)
+            .background(background)
+            .then(clickModifier)
+            .padding(horizontal = 8.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         if (selectionMode) {
             Checkbox(checked = isSelected, onCheckedChange = null)
-        } else {
-            val tileColor = if (isCurrent) colors.primary else colors.surfaceContainerHighest
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(tileColor),
-                contentAlignment = Alignment.Center
-            ) {
-                if (isCurrent) {
+            Spacer(Modifier.width(8.dp))
+        }
+
+        Box(modifier = Modifier.size(52.dp)) {
+            SongThumbnail(song = song, modifier = Modifier.fillMaxSize())
+            if (isCurrent) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color.Black.copy(alpha = 0.6f)),
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Filled.GraphicEq else Icons.Filled.Pause,
                         contentDescription = if (isPlaying) "Playing" else "Paused",
-                        tint = colors.onPrimary
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Filled.MusicNote,
-                        contentDescription = null,
-                        tint = colors.onSurfaceVariant
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
             }
         }
-    }
 
-    // The clip comes before the click handler so the ripple follows the
-    // rounded corners.
-    val shapedModifier = modifier
-        .padding(horizontal = 8.dp, vertical = 2.dp)
-        .clip(rowShape)
+        Spacer(Modifier.width(14.dp))
 
-    val clickModifier = if (onLongClick != null) {
-        shapedModifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
-    } else {
-        shapedModifier.clickable(onClick = onClick)
-    }
-
-    ListItem(
-        headlineContent = {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 song.title,
                 style = MaterialTheme.typography.titleMedium,
-                color = titleColor,
+                fontWeight = if (isCurrent) FontWeight.SemiBold else null,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-        },
-        supportingContent = {
             Text(
-                if (extraInfo != null) "${song.artist} · $extraInfo" else song.artist,
+                if (extraInfo != null) "${song.artist}  |  $extraInfo" else song.artist,
                 style = MaterialTheme.typography.bodyMedium,
-                color = artistColor,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-        },
-        leadingContent = leading,
-        trailingContent = trailing,
-        colors = ListItemDefaults.colors(containerColor = containerColor),
-        modifier = clickModifier
-    )
+        }
+
+        if (trailing != null) {
+            Spacer(Modifier.width(8.dp))
+            trailing()
+        }
+    }
 }

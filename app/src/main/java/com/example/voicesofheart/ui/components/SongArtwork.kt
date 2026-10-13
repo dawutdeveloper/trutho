@@ -28,6 +28,7 @@ import com.example.voicesofheart.data.media.ArtworkLoader
 import com.example.voicesofheart.domain.Song
 import kotlin.random.Random
 
+// Large cover (player screen)
 @Composable
 fun SongArtwork(
     song: Song?,
@@ -65,6 +66,41 @@ fun SongArtwork(
             } else {
                 GeneratedCover(seed = song?.id ?: 0L, modifier = Modifier.fillMaxSize())
             }
+        }
+    }
+}
+
+// Small cover (lists, cards)
+@Composable
+fun SongThumbnail(
+    song: Song?,
+    modifier: Modifier = Modifier,
+    cornerRadius: Dp = 10.dp
+) {
+    val context = LocalContext.current
+
+    val bitmap by produceState<Bitmap?>(
+        initialValue = song?.let { ArtworkLoader.cachedThumb(it.id) },
+        song?.id
+    ) {
+        val cached = song?.let { ArtworkLoader.cachedThumb(it.id) }
+        value = cached
+        if (cached == null && song != null) {
+            value = ArtworkLoader.loadThumb(context, song)
+        }
+    }
+
+    Box(modifier = modifier.clip(RoundedCornerShape(cornerRadius))) {
+        val bmp = bitmap
+        if (bmp != null) {
+            Image(
+                bitmap = bmp.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            GeneratedCover(seed = song?.id ?: 0L, modifier = Modifier.fillMaxSize())
         }
     }
 }
@@ -115,12 +151,12 @@ fun GeneratedCover(seed: Long, modifier: Modifier = Modifier) {
                 color = Color.White.copy(alpha = alpha),
                 radius = m * spec.gap * i,
                 center = center,
-                style = Stroke(width = m * 0.004f)
+                style = Stroke(width = maxOf(m * 0.004f, 1.5f))
             )
         }
         drawCircle(
             color = Color.White.copy(alpha = 0.85f),
-            radius = m * 0.010f,
+            radius = maxOf(m * 0.010f, 2f),
             center = center
         )
     }
