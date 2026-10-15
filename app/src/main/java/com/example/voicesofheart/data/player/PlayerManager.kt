@@ -134,7 +134,11 @@ object PlayerManager {
             .build()
     }
 
-    fun playSong(song: Song, songList: List<Song> = listOf(song)) {
+    fun playSong(
+        song: Song,
+        songList: List<Song> = listOf(song),
+        startPositionMs: Long = 0L
+    ) {
         restoreCancelled = true
         playlist = songList
         endedHandled = false
@@ -144,7 +148,7 @@ object PlayerManager {
         val mediaItems = songList.map { it.toMediaItem() }
 
         val action: (MediaController) -> Unit = { c ->
-            c.setMediaItems(mediaItems, startIndex, 0L)
+            c.setMediaItems(mediaItems, startIndex, startPositionMs)
             c.prepare()
             c.play()
         }

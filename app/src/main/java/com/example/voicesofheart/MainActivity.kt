@@ -48,10 +48,10 @@ fun VoicesOfHeartApp() {
         val navController = rememberNavController()
         val currentSongState by PlayerManager.currentSong.collectAsState()
 
-        // The player is full screen: hide the mini player and the tabs there
+        // The player and the note screen are full screen: no mini player, no tabs
         val backStackEntry by navController.currentBackStackEntryAsState()
         val route = backStackEntry?.destination?.route
-        val showBars = route != Screen.Player.route
+        val showBars = route != Screen.Player.route && route != Screen.NoteDetail.route
 
         Scaffold(
             bottomBar = {

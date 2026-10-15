@@ -15,11 +15,20 @@ interface NoteDao {
     )
     fun getNotesForSong(songId: Long): Flow<List<Note>>
 
+    @Query("SELECT * FROM notes ORDER BY createdAt DESC")
+    fun observeAll(): Flow<List<Note>>
+
+    @Query("SELECT * FROM notes WHERE id = :id")
+    fun observeNote(id: Int): Flow<Note?>
+
     @Insert
     suspend fun insertNote(note: Note)
 
     @Delete
     suspend fun deleteNote(note: Note)
+
+    @Query("UPDATE notes SET text = :text WHERE id = :id")
+    suspend fun updateText(id: Int, text: String)
 
     @Query("DELETE FROM notes WHERE songId IN (:songIds)")
     suspend fun deleteForSongs(songIds: List<Long>)

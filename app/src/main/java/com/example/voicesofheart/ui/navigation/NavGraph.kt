@@ -11,6 +11,8 @@ import com.example.voicesofheart.ui.folders.FoldersScreen
 import com.example.voicesofheart.ui.home.HomeScreen
 import com.example.voicesofheart.ui.kaizen.KaizenScreen
 import com.example.voicesofheart.ui.library.LibraryScreen
+import com.example.voicesofheart.ui.notes.NoteDetailScreen
+import com.example.voicesofheart.ui.notes.NotesScreen
 import com.example.voicesofheart.ui.player.PlayerScreen
 import com.example.voicesofheart.ui.stats.StatsScreen
 
@@ -40,6 +42,12 @@ fun NavGraph(navController: NavHostController) {
             })
         }
 
+        composable(Screen.Notes.route) {
+            NotesScreen(onOpenNote = { id ->
+                navController.navigate(Screen.NoteDetail.createRoute(id))
+            })
+        }
+
         composable(Screen.Stats.route) {
             StatsScreen(onBack = { navController.popBackStack() })
         }
@@ -50,6 +58,14 @@ fun NavGraph(navController: NavHostController) {
         ) { backStackEntry ->
             val folderId = backStackEntry.arguments?.getLong("folderId") ?: -1L
             FolderDetailScreen(folderId = folderId, onBack = { navController.popBackStack() })
+        }
+
+        composable(
+            route = Screen.NoteDetail.route,
+            arguments = listOf(navArgument("noteId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val noteId = backStackEntry.arguments?.getInt("noteId") ?: -1
+            NoteDetailScreen(noteId = noteId, onBack = { navController.popBackStack() })
         }
 
         composable(
