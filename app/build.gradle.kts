@@ -5,13 +5,13 @@ plugins {
 }
 
 android {
-    namespace = "com.example.voicesofheart"
+    namespace = "com.dawutdeveloper.trutho"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "com.example.voicesofheart"
+        applicationId = "com.dawutdeveloper.trutho"
         minSdk = 24
         targetSdk = 37
         versionCode = 1

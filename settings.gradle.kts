@@ -22,6 +22,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "voicesofheart"
+rootProject.name = "Trutho"
 include(":app")
  
