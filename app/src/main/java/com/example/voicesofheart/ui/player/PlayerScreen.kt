@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
@@ -48,6 +49,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -61,7 +63,11 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlayerScreen(songId: Long, onBack: () -> Unit) {
+fun PlayerScreen(
+    songId: Long,
+    onBack: () -> Unit,
+    onOpenNote: (Int) -> Unit
+) {
     val context = LocalContext.current
     val db = remember { AppDatabase.getInstance(context) }
     val scope = rememberCoroutineScope()
@@ -226,6 +232,10 @@ fun PlayerScreen(songId: Long, onBack: () -> Unit) {
                     PlayerManager.seekTo(ms)
                     if (!isPlaying) PlayerManager.togglePlayPause()
                     showNotes = false
+                },
+                onNoteClick = { noteId ->
+                    showNotes = false
+                    onOpenNote(noteId)
                 }
             )
         }
@@ -284,7 +294,8 @@ private fun NotesSheetContent(
     notes: List<Note>,
     onAddNote: (String, Long?) -> Unit,
     onDeleteNote: (Note) -> Unit,
-    onJump: (Long) -> Unit
+    onJump: (Long) -> Unit,
+    onNoteClick: (Int) -> Unit
 ) {
     var text by remember { mutableStateOf("") }
     // The time is captured when the sheet opens, which is the moment you wanted to note
@@ -297,6 +308,14 @@ private fun NotesSheetContent(
             .padding(16.dp)
     ) {
         Text("Notes", style = MaterialTheme.typography.titleLarge)
+        if (notes.isNotEmpty()) {
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Tap a note to open it. Tap its time to jump there.",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
         Spacer(Modifier.height(12.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -340,7 +359,11 @@ private fun NotesSheetContent(
                         Text(
                             formatTime(ms),
                             style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onJump(ms) }
+                                .padding(horizontal = 8.dp, vertical = 6.dp)
                         )
                     }
                 } else {
@@ -349,17 +372,19 @@ private fun NotesSheetContent(
 
                 ListItem(
                     leadingContent = timeLabel,
-                    headlineContent = { Text(note.text) },
+                    headlineContent = {
+                        Text(
+                            note.text,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
                     trailingContent = {
                         IconButton(onClick = { onDeleteNote(note) }) {
                             Icon(Icons.Filled.Delete, contentDescription = "Delete note")
                         }
                     },
-                    modifier = if (ms != null) {
-                        Modifier.clickable { onJump(ms) }
-                    } else {
-                        Modifier
-                    }
+                    modifier = Modifier.clickable { onNoteClick(note.id) }
                 )
                 HorizontalDivider()
             }

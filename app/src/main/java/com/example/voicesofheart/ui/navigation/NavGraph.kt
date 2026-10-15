@@ -73,7 +73,13 @@ fun NavGraph(navController: NavHostController) {
             arguments = listOf(navArgument("songId") { type = NavType.LongType })
         ) { backStackEntry ->
             val songId = backStackEntry.arguments?.getLong("songId") ?: -1L
-            PlayerScreen(songId = songId, onBack = { navController.popBackStack() })
+            PlayerScreen(
+                songId = songId,
+                onBack = { navController.popBackStack() },
+                onOpenNote = { noteId ->
+                    navController.navigate(Screen.NoteDetail.createRoute(noteId))
+                }
+            )
         }
     }
 }
