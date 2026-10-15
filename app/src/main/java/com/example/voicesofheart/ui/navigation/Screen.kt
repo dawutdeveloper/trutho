@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
@@ -17,6 +18,7 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     object Folders : Screen("folders", "Folders", Icons.Filled.Folder)
     object Notes : Screen("notes", "Notes", Icons.Filled.EditNote)
     object Stats : Screen("stats", "Stats", Icons.Filled.BarChart)
+    object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
 
     object Player : Screen("player/{songId}", "Player", Icons.Filled.PlayArrow) {
         fun createRoute(songId: Long) = "player/$songId"

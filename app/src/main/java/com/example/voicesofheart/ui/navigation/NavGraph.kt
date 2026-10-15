@@ -14,6 +14,7 @@ import com.example.voicesofheart.ui.library.LibraryScreen
 import com.example.voicesofheart.ui.notes.NoteDetailScreen
 import com.example.voicesofheart.ui.notes.NotesScreen
 import com.example.voicesofheart.ui.player.PlayerScreen
+import com.example.voicesofheart.ui.settings.SettingsScreen
 import com.example.voicesofheart.ui.stats.StatsScreen
 
 @Composable
@@ -28,6 +29,11 @@ fun NavGraph(navController: NavHostController) {
                 },
                 onOpenStats = {
                     navController.navigate(Screen.Stats.route) {
+                        launchSingleTop = true
+                    }
+                },
+                onOpenSettings = {
+                    navController.navigate(Screen.Settings.route) {
                         launchSingleTop = true
                     }
                 }
@@ -50,6 +56,10 @@ fun NavGraph(navController: NavHostController) {
 
         composable(Screen.Stats.route) {
             StatsScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Screen.Settings.route) {
+            SettingsScreen(onBack = { navController.popBackStack() })
         }
 
         composable(

@@ -10,6 +10,12 @@ interface ListenLogDao {
     @Insert
     suspend fun insert(log: ListenLog)
 
+    @Insert
+    suspend fun insertAll(logs: List<ListenLog>)
+
+    @Query("SELECT * FROM listen_log")
+    suspend fun getAll(): List<ListenLog>
+
     @Query("SELECT COUNT(*) FROM listen_log WHERE listenedAt >= :since")
     fun observeCountSince(since: Long): Flow<Int>
 

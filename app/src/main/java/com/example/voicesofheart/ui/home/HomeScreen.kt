@@ -39,6 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.Settings
 import com.example.voicesofheart.data.local.AppDatabase
 import com.example.voicesofheart.data.local.KaizenStatus
 import com.example.voicesofheart.data.media.SongScanner
@@ -60,7 +61,11 @@ private fun startOfTodayMillis(): Long {
 }
 
 @Composable
-fun HomeScreen(onOpenPlayer: (Long) -> Unit, onOpenStats: () -> Unit) {
+fun HomeScreen(
+    onOpenPlayer: (Long) -> Unit,
+    onOpenStats: () -> Unit,
+    onOpenSettings: () -> Unit
+) {
     val context = LocalContext.current
     val db = remember { AppDatabase.getInstance(context) }
 
@@ -116,6 +121,9 @@ fun HomeScreen(onOpenPlayer: (Long) -> Unit, onOpenStats: () -> Unit) {
                 }
                 IconButton(onClick = onOpenStats) {
                     Icon(Icons.Filled.BarChart, contentDescription = "Stats")
+                }
+                IconButton(onClick = onOpenSettings) {
+                    Icon(Icons.Filled.Settings, contentDescription = "Settings")
                 }
             }
         }

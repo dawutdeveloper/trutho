@@ -22,6 +22,12 @@ abstract class FolderDao {
     @Query("SELECT folderId, COUNT(*) AS count FROM folder_songs GROUP BY folderId")
     abstract fun observeCounts(): Flow<List<FolderCount>>
 
+    @Query("SELECT * FROM folders")
+    abstract suspend fun getAllFolders(): List<Folder>
+
+    @Query("SELECT * FROM folder_songs")
+    abstract suspend fun getAllLinks(): List<FolderSong>
+
     @Insert
     abstract suspend fun insertFolder(folder: Folder): Long
 
