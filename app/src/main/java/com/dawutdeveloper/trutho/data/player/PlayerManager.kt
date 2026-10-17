@@ -112,8 +112,9 @@ object PlayerManager {
                     connected.addListener(playerListener)
                     _isPlaying.value = connected.isPlaying
                     if (connected.isPlaying) startTicker()
-                    pendingActions.forEach { action -> action(connected) }
+                    val actions = pendingActions.toList()
                     pendingActions.clear()
+                    actions.forEach { action -> action(connected) }
                     restoreIfNeeded(connected)
                 }
             },
@@ -161,12 +162,24 @@ object PlayerManager {
         controller?.let { if (it.isPlaying) it.pause() else it.play() }
     }
 
+    // Keep the existing play/pause intent when skipping tracks.
+    // The MediaSession also handles lock-screen and headset skip commands directly.
     fun skipNext() {
-        controller?.seekToNext()
+        controller?.let { player ->
+            if (player.hasNextMediaItem()) {
+                val shouldContinuePlaying = player.playWhenReady
+                player.seekToNextMediaItem()
+                if (shouldContinuePlaying) player.play()
+            }
+        }
     }
 
     fun skipPrevious() {
-        controller?.seekToPrevious()
+        controller?.let { player ->
+            val shouldContinuePlaying = player.playWhenReady
+            player.seekToPrevious()
+            if (shouldContinuePlaying) player.play()
+        }
     }
 
     fun currentPosition(): Long = controller?.currentPosition ?: 0L

@@ -1,6 +1,7 @@
 package com.dawutdeveloper.trutho.ui.player
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilterChip
@@ -40,6 +42,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -51,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.dawutdeveloper.trutho.data.local.AppDatabase
@@ -204,7 +208,7 @@ fun PlayerScreen(
                 kaizen?.let { current ->
                     scope.launch {
                         db.trackStateDao().upsert(
-                            current.copy(targetRepeats = target.coerceIn(2, 4))
+                            current.copy(targetRepeats = target.coerceIn(1, 100), updatedAt = System.currentTimeMillis())
                         )
                     }
                 }
@@ -266,24 +270,73 @@ private fun KaizenControls(
         }
 
         if (state != null && state.status == KaizenStatus.REPEAT) {
+            var showRepeatDialog by remember { mutableStateOf(false) }
+            var repeatInput by remember { mutableStateOf("") }
+
             Spacer(Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(
                     onClick = { onTargetChange(state.targetRepeats - 1) },
-                    enabled = state.targetRepeats > 2
+                    enabled = state.targetRepeats > 1
                 ) {
                     Icon(Icons.Filled.Remove, contentDescription = "Fewer repeats")
                 }
-                Text(
-                    "Repeat ${state.completedRepeats} of ${state.targetRepeats}",
-                    style = MaterialTheme.typography.bodyMedium
-                )
+                TextButton(onClick = {
+                    repeatInput = state.targetRepeats.toString()
+                    showRepeatDialog = true
+                }) {
+                    Text("Repeat ${state.completedRepeats} of ${state.targetRepeats}")
+                }
                 IconButton(
                     onClick = { onTargetChange(state.targetRepeats + 1) },
-                    enabled = state.targetRepeats < 4
+                    enabled = state.targetRepeats < 100
                 ) {
                     Icon(Icons.Filled.Add, contentDescription = "More repeats")
                 }
+            }
+
+            if (showRepeatDialog) {
+                val parsed = repeatInput.toIntOrNull()
+                val valid = parsed != null && parsed in 1..100
+
+                AlertDialog(
+                    onDismissRequest = { showRepeatDialog = false },
+                    title = { Text("Set repeat target") },
+                    text = {
+                        Column {
+                            Text("Choose a number from 1 to 100")
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = repeatInput,
+                                onValueChange = { value ->
+                                    if (value.length <= 3 && value.all(Char::isDigit)) {
+                                        repeatInput = value
+                                    }
+                                },
+                                label = { Text("Repeats") },
+                                singleLine = true,
+                                isError = repeatInput.isNotEmpty() && !valid,
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Number
+                                )
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(
+                            enabled = valid,
+                            onClick = {
+                                parsed?.let(onTargetChange)
+                                showRepeatDialog = false
+                            }
+                        ) { Text("Save") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showRepeatDialog = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
             }
         }
     }

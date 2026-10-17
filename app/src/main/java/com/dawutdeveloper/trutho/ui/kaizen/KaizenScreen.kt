@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -22,11 +23,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -100,12 +105,23 @@ fun KaizenScreen() {
 
     var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
     var loaded by remember { mutableStateOf(false) }
+    var scanFailed by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
-        songs = withContext(Dispatchers.IO) {
-            runCatching { SongScanner(context).scanSongs() }.getOrDefault(emptyList())
+        loaded = false
+        scanFailed = false
+
+        val result = withContext(Dispatchers.IO) {
+            runCatching {
+                SongScanner(context).scanSongs()
+            }
         }
+
+        scanFailed = result.isFailure
+        songs = result.getOrDefault(emptyList())
         loaded = true
     }
+
 
     var stageName by rememberSaveable { mutableStateOf(KaizenStatus.MUST_LISTEN.name) }
     val stage = KaizenStatus.valueOf(stageName)
@@ -113,6 +129,8 @@ fun KaizenScreen() {
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var showStatusPicker by remember { mutableStateOf(false) }
     var addTargets by remember { mutableStateOf<List<Song>?>(null) }
+    var showAddSongsDialog by remember { mutableStateOf(false) }
+
 
     val songById = songs.associateBy { it.id }
 
@@ -222,7 +240,7 @@ fun KaizenScreen() {
                                 status = status,
                                 count = countByStatus[status] ?: 0,
                                 selected = stage == status,
-                                onClick = { stageName = status.name },
+                                onClick = { selectedIds = emptySet(); stageName = status.name },
                                 modifier = Modifier.weight(1f)
                             )
                         }
@@ -245,6 +263,19 @@ fun KaizenScreen() {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilledTonalButton(
+                            onClick = { showAddSongsDialog = true },
+                            enabled = loaded && !scanFailed
+                        ) {
+                            Text("Add songs")
+                        }
                         if (stageSongs.isNotEmpty()) {
                             FilledTonalButton(
                                 onClick = { PlayerManager.playSong(stageSongs.first(), stageSongs) }
@@ -262,7 +293,8 @@ fun KaizenScreen() {
                 if (loaded) {
                     item {
                         Text(
-                            stageEmptyText(stage),
+                            if (scanFailed) "Unable to read songs. Check music permissions in Library."
+                            else stageEmptyText(stage),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
@@ -331,6 +363,124 @@ fun KaizenScreen() {
             onDismiss = { addTargets = null }
         )
     }
+
+    if (showAddSongsDialog) {
+        val alreadyAddedIds = states
+            .asSequence()
+            .filter { it.status == stage }
+            .map { it.songId }
+            .toSet()
+
+        AddSongsToKaizenDialog(
+            songs = songs,
+            alreadyAddedIds = alreadyAddedIds,
+            stage = stage,
+            onConfirm = { ids ->
+                scope.launch {
+                    val result = runCatching {
+                        withContext(Dispatchers.IO) {
+                            db.setKaizenStatus(ids, stage)
+                        }
+                    }
+                    if (result.isSuccess) {
+                        showAddSongsDialog = false
+                        Toast.makeText(
+                            context,
+                            "${ids.size} songs added to ${stage.label}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    } else {
+                        Toast.makeText(context, "Could not add songs", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onDismiss = { showAddSongsDialog = false }
+        )
+    }
+}
+
+@Composable
+private fun AddSongsToKaizenDialog(
+    songs: List<Song>,
+    alreadyAddedIds: Set<Long>,
+    stage: KaizenStatus,
+    onConfirm: (List<Long>) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var query by remember { mutableStateOf("") }
+    var selected by remember { mutableStateOf<Set<Long>>(emptySet()) }
+    val available = remember(songs, alreadyAddedIds) {
+        songs.filter { it.id !in alreadyAddedIds }
+    }
+    val filtered = remember(available, query) {
+        available.filter {
+            it.title.contains(query, ignoreCase = true) ||
+                    it.artist.contains(query, ignoreCase = true)
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add songs to ${stage.label}") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    label = { Text("Search songs") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(8.dp))
+                LazyColumn(modifier = Modifier.heightIn(max = 350.dp)) {
+                    items(filtered, key = { it.id }) { song ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selected = if (song.id in selected) {
+                                        selected - song.id
+                                    } else {
+                                        selected + song.id
+                                    }
+                                }
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = song.id in selected,
+                                onCheckedChange = { checked ->
+                                    selected = if (checked) {
+                                        selected + song.id
+                                    } else {
+                                        selected - song.id
+                                    }
+                                }
+                            )
+                            Column {
+                                Text(song.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(
+                                    song.artist,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = selected.isNotEmpty(),
+                onClick = { onConfirm(selected.toList()) }
+            ) { Text("Add ${selected.size}") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
 
 // One segmented bar that shows how your songs are spread over the four stages

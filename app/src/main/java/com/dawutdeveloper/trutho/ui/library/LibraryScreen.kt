@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -93,6 +94,11 @@ fun LibraryScreen() {
     var query by rememberSaveable { mutableStateOf("") }
     var sortName by rememberSaveable { mutableStateOf(SortOption.TITLE.name) }
     val sort = SortOption.valueOf(sortName)
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(sortName) {
+        listState.scrollToItem(0)
+    }
 
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var addTargets by remember { mutableStateOf<List<Song>?>(null) }
@@ -100,10 +106,16 @@ fun LibraryScreen() {
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var pendingDelete by remember { mutableStateOf<List<Song>>(emptyList()) }
 
+    val audioPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        Manifest.permission.READ_MEDIA_AUDIO
+    } else {
+        Manifest.permission.READ_EXTERNAL_STORAGE
+    }
+
     var hasPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
-                context, Manifest.permission.READ_EXTERNAL_STORAGE
+                context, audioPermission
             ) == PackageManager.PERMISSION_GRANTED
         )
     }
@@ -136,10 +148,11 @@ fun LibraryScreen() {
     }
 
     LaunchedEffect(hasPermission) {
-        if (!hasPermission) {
-            permissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
-        } else {
-            songs = withContext(Dispatchers.IO) { SongScanner(context).scanSongs() }
+        if (hasPermission) {
+            loaded = false
+            songs = withContext(Dispatchers.IO) {
+                runCatching { SongScanner(context).scanSongs() }.getOrDefault(emptyList())
+            }
             loaded = true
         }
     }
@@ -175,7 +188,12 @@ fun LibraryScreen() {
     when {
         !hasPermission -> {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Permission needed to read your music files")
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Permission needed to read your music files")
+                    TextButton(onClick = { permissionLauncher.launch(audioPermission) }) {
+                        Text("Grant permission")
+                    }
+                }
             }
         }
 
@@ -280,6 +298,7 @@ fun LibraryScreen() {
                     }
                 } else {
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(1f),
