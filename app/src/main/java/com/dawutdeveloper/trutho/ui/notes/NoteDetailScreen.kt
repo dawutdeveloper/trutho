@@ -1,6 +1,7 @@
 package com.dawutdeveloper.trutho.ui.notes
 
 import android.widget.Toast
+import com.dawutdeveloper.trutho.ui.components.FavoriteButton
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -74,7 +75,8 @@ fun NoteDetailScreen(noteId: Int, onBack: () -> Unit) {
     val isPlaying by PlayerManager.isPlaying.collectAsState()
 
     var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
-    LaunchedEffect(Unit) {
+    val mediaRevision by com.dawutdeveloper.trutho.data.media.MediaChanges.revision.collectAsState()
+    LaunchedEffect(mediaRevision) {
         songs = withContext(Dispatchers.IO) {
             runCatching { SongScanner(context).scanSongs() }.getOrDefault(emptyList())
         }
@@ -155,6 +157,9 @@ fun NoteDetailScreen(noteId: Int, onBack: () -> Unit) {
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.weight(1f)
             )
+            FavoriteButton(current?.isFavorite == true, {
+                scope.launch { db.noteDao().toggleFavorite(noteId) }
+            }, enabled = current != null)
             if (editing) {
                 TextButton(onClick = requestCancelEdit) { Text("Cancel") }
                 FilledTonalButton(onClick = save) { Text("Save") }

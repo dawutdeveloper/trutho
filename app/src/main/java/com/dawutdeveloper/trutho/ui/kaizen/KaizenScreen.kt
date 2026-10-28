@@ -107,7 +107,8 @@ fun KaizenScreen() {
     var loaded by remember { mutableStateOf(false) }
     var scanFailed by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
+    val mediaRevision by com.dawutdeveloper.trutho.data.media.MediaChanges.revision.collectAsState()
+    LaunchedEffect(mediaRevision) {
         loaded = false
         scanFailed = false
 

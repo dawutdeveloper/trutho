@@ -3,6 +3,7 @@ package com.dawutdeveloper.trutho.data.player
 import android.app.PendingIntent
 import android.content.Intent
 import androidx.media3.common.AudioAttributes
+import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
@@ -13,6 +14,7 @@ class PlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
 
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
 
@@ -37,7 +39,15 @@ class PlaybackService : MediaSessionService() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        mediaSession = MediaSession.Builder(this, player)
+        val sessionPlayer = object : ForwardingPlayer(player) {
+            override fun seekToNextMediaItem() {
+                if (hasNextMediaItem()) { super.seekToNextMediaItem(); play() }
+            }
+            override fun seekToNext() {
+                if (hasNextMediaItem()) { super.seekToNext(); play() }
+            }
+        }
+        mediaSession = MediaSession.Builder(this, sessionPlayer)
             .setSessionActivity(openApp)
             .build()
     }

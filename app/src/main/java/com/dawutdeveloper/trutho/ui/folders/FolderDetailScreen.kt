@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -75,12 +76,18 @@ fun FolderDetailScreen(folderId: Long, onBack: () -> Unit) {
     val isPlaying by PlayerManager.isPlaying.collectAsState()
 
     var allSongs by remember { mutableStateOf<List<Song>>(emptyList()) }
-    LaunchedEffect(Unit) {
-        allSongs = withContext(Dispatchers.IO) { SongScanner(context).scanSongs() }
+    val mediaRevision by com.dawutdeveloper.trutho.data.media.MediaChanges.revision.collectAsState()
+    LaunchedEffect(mediaRevision) {
+        allSongs = withContext(Dispatchers.IO) {
+            runCatching { SongScanner(context).scanSongs() }.getOrDefault(emptyList())
+        }
     }
 
     var sortName by rememberSaveable { mutableStateOf(FolderSort.ADDED.name) }
     val sort = FolderSort.valueOf(sortName)
+    val listState = rememberLazyListState()
+    var sortRequest by remember { mutableStateOf(0) }
+    LaunchedEffect(sortRequest) { listState.scrollToItem(0) }
 
     var selectedIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var showMovePicker by remember { mutableStateOf(false) }
@@ -158,7 +165,7 @@ fun FolderDetailScreen(folderId: Long, onBack: () -> Unit) {
                     FolderSort.entries.forEach { option ->
                         FilterChip(
                             selected = sort == option,
-                            onClick = { sortName = option.name },
+                            onClick = { sortName = option.name; sortRequest++ },
                             label = { Text(option.label) }
                         )
                     }
@@ -174,7 +181,7 @@ fun FolderDetailScreen(folderId: Long, onBack: () -> Unit) {
                 )
             }
         } else {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                 items(songs, key = { it.id }) { song ->
                     val removeButton: (@Composable () -> Unit)? = if (selectionMode) {
                         null

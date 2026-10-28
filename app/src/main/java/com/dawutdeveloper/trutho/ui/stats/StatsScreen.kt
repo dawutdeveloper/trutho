@@ -41,7 +41,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.TextStyle
-import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -85,12 +84,14 @@ fun StatsScreen(onBack: () -> Unit) {
     val isPlaying by PlayerManager.isPlaying.collectAsState()
 
     var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
-    LaunchedEffect(Unit) {
+    val mediaRevision by com.dawutdeveloper.trutho.data.media.MediaChanges.revision.collectAsState()
+    LaunchedEffect(mediaRevision) {
         songs = withContext(Dispatchers.IO) {
             runCatching { SongScanner(context).scanSongs() }.getOrDefault(emptyList())
         }
     }
 
+    val locale = androidx.compose.ui.platform.LocalConfiguration.current.locales[0]
     val today = LocalDate.now()
 
     val perDay: Map<LocalDate, Int> = remember(stamps) {
@@ -108,7 +109,7 @@ fun StatsScreen(onBack: () -> Unit) {
         val label = if (offset == 0) {
             "Today"
         } else {
-            date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+            date.dayOfWeek.getDisplayName(TextStyle.SHORT, locale)
         }
         DayBar(label, perDay[date] ?: 0)
     }

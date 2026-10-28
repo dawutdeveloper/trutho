@@ -17,6 +17,10 @@ sealed class Screen(val route: String, val label: String, val icon: ImageVector)
     object Kaizen : Screen("kaizen", "Kaizen", Icons.AutoMirrored.Filled.TrendingUp)
     object Folders : Screen("folders", "Folders", Icons.Filled.Folder)
     object Notes : Screen("notes", "Notes", Icons.Filled.EditNote)
+    object Favorites : Screen("favorites", "Favorites", Icons.Filled.LibraryMusic)
+    object SongEdit : Screen("song-edit/{songId}", "Edit song", Icons.Filled.EditNote) {
+        fun createRoute(id: Long) = "song-edit/$id"
+    }
     object Stats : Screen("stats", "Stats", Icons.Filled.BarChart)
     object Settings : Screen("settings", "Settings", Icons.Filled.Settings)
 

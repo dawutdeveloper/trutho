@@ -52,6 +52,9 @@ import com.dawutdeveloper.trutho.ui.components.SongThumbnail
 import com.dawutdeveloper.trutho.ui.player.formatTime
 import java.text.DateFormat
 import java.util.Date
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
+import com.dawutdeveloper.trutho.ui.components.FavoriteButton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -73,16 +76,19 @@ fun TimePill(label: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun NotesScreen(onOpenNote: (Int) -> Unit) {
+fun NotesScreen(onOpenNote: (Int) -> Unit, favoritesOnly: Boolean = false) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val db = remember { AppDatabase.getInstance(context) }
 
     val notesFlow = remember { db.noteDao().observeAll() }
-    val notes by notesFlow.collectAsState(initial = emptyList())
+    val allNotes by notesFlow.collectAsState(initial = emptyList())
+    val notes = if (favoritesOnly) allNotes.filter { it.isFavorite } else allNotes
+    val scope = rememberCoroutineScope()
 
     var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
-    LaunchedEffect(Unit) {
+    val mediaRevision by com.dawutdeveloper.trutho.data.media.MediaChanges.revision.collectAsState()
+    LaunchedEffect(mediaRevision) {
         songs = withContext(Dispatchers.IO) {
             runCatching { SongScanner(context).scanSongs() }.getOrDefault(emptyList())
         }
@@ -110,7 +116,7 @@ fun NotesScreen(onOpenNote: (Int) -> Unit) {
 
     Column(modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp)) {
-            Text("Notes", style = MaterialTheme.typography.headlineSmall)
+            Text(if (favoritesOnly) "Favorite notes" else "Notes", style = MaterialTheme.typography.headlineSmall)
             Text(
                 if (notes.size == 1) "1 note" else "${notes.size} notes",
                 style = MaterialTheme.typography.bodyMedium,
@@ -160,7 +166,9 @@ fun NotesScreen(onOpenNote: (Int) -> Unit) {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    if (notes.isEmpty()) {
+                    if (notes.isEmpty() && favoritesOnly) {
+                        "No favorite notes yet. Tap the heart beside a note."
+                    } else if (notes.isEmpty()) {
                         "No notes yet. Open a song and tap the notes icon to write one."
                     } else {
                         "No notes match your search"
@@ -180,7 +188,8 @@ fun NotesScreen(onOpenNote: (Int) -> Unit) {
                     NoteCard(
                         note = note,
                         song = songById[note.songId],
-                        onClick = { onOpenNote(note.id) }
+                        onClick = { onOpenNote(note.id) },
+                        onFavorite = { scope.launch { db.noteDao().toggleFavorite(note.id) } }
                     )
                 }
             }
@@ -189,7 +198,7 @@ fun NotesScreen(onOpenNote: (Int) -> Unit) {
 }
 
 @Composable
-private fun NoteCard(note: Note, song: Song?, onClick: () -> Unit) {
+private fun NoteCard(note: Note, song: Song?, onClick: () -> Unit, onFavorite: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -223,6 +232,7 @@ private fun NoteCard(note: Note, song: Song?, onClick: () -> Unit) {
                     )
                 }
             }
+            FavoriteButton(note.isFavorite, onFavorite)
             val ms = note.timestampMs
             if (ms != null) {
                 Spacer(Modifier.width(8.dp))

@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -63,6 +64,7 @@ private fun startOfTodayMillis(): Long {
 @Composable
 fun HomeScreen(
     onOpenPlayer: (Long) -> Unit,
+    onOpenFavorites: () -> Unit,
     onOpenStats: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
@@ -80,7 +82,8 @@ fun HomeScreen(
     val isPlaying by PlayerManager.isPlaying.collectAsState()
 
     var songs by remember { mutableStateOf<List<Song>>(emptyList()) }
-    LaunchedEffect(Unit) {
+    val mediaRevision by com.dawutdeveloper.trutho.data.media.MediaChanges.revision.collectAsState()
+    LaunchedEffect(mediaRevision) {
         songs = withContext(Dispatchers.IO) {
             runCatching { SongScanner(context).scanSongs() }.getOrDefault(emptyList())
         }
@@ -118,6 +121,9 @@ fun HomeScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+                IconButton(onClick = onOpenFavorites) {
+                    Icon(Icons.Filled.Favorite, contentDescription = "Favorites")
                 }
                 IconButton(onClick = onOpenStats) {
                     Icon(Icons.Filled.BarChart, contentDescription = "Stats")

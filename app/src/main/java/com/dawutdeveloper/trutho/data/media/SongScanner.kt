@@ -18,7 +18,8 @@ class SongScanner(private val context: Context) {
             MediaStore.Audio.Media.DURATION,
             MediaStore.Audio.Media.DATE_ADDED
         )
-        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
+        // Include shared voice recordings, podcasts and other playable audio.
+        val selection: String? = null
         val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
 
         context.contentResolver.query(

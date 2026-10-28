@@ -24,16 +24,33 @@ import com.dawutdeveloper.trutho.ui.navigation.Screen
 import com.dawutdeveloper.trutho.ui.theme.TruthoTheme
 
 class MainActivity : ComponentActivity() {
+    private val audioObserver = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean) {
+            com.dawutdeveloper.trutho.data.media.MediaChanges.notifyChanged()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT)
         )
+        contentResolver.registerContentObserver(android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, true, audioObserver)
         PlayerManager.init(applicationContext)
         setContent {
             TruthoApp()
         }
+    }
+
+    override fun onDestroy() {
+        contentResolver.unregisterContentObserver(audioObserver)
+        super.onDestroy()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        com.dawutdeveloper.trutho.data.media.MediaChanges.notifyChanged()
     }
 
     override fun onStop() {
@@ -51,7 +68,7 @@ fun TruthoApp() {
         // The player and the note screen are full screen: no mini player, no tabs
         val backStackEntry by navController.currentBackStackEntryAsState()
         val route = backStackEntry?.destination?.route
-        val showBars = route != Screen.Player.route && route != Screen.NoteDetail.route
+        val showBars = route != Screen.Player.route && route != Screen.NoteDetail.route && route != Screen.SongEdit.route
 
         Scaffold(
             bottomBar = {

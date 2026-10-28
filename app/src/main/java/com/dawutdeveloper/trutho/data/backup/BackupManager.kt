@@ -25,7 +25,7 @@ object BackupManager {
 
     // Backups made before the rename used this id and must still be accepted
     private const val LEGACY_APP_ID = "voicesofheart"
-    private const val FORMAT_VERSION = 1
+    private const val FORMAT_VERSION = 2
 
     // Files re-encoded or re-tagged can differ slightly in length
     private const val MATCH_TOLERANCE_MS = 3000L
@@ -57,6 +57,7 @@ object BackupManager {
                 val folders = db.folderDao().getAllFolders()
                 val links = db.folderDao().getAllLinks()
                 val logs = db.listenLogDao().getAll()
+                val favorites = db.favoriteSongDao().getAll()
 
                 val songs = runCatching { SongScanner(app).scanSongs() }
                     .getOrDefault(emptyList())
@@ -64,6 +65,7 @@ object BackupManager {
 
                 // Every song that appears in your data
                 val usedIds = HashSet<Long>()
+                for (favorite in favorites) usedIds.add(favorite.songId)
                 for (n in notes) usedIds.add(n.songId)
                 for (s in states) usedIds.add(s.songId)
                 for (l in links) usedIds.add(l.songId)
@@ -87,6 +89,7 @@ object BackupManager {
                     val o = JSONObject()
                     o.put("songId", n.songId)
                     o.put("text", n.text)
+                    o.put("isFavorite", n.isFavorite)
                     o.put("createdAt", n.createdAt)
                     val ms = n.timestampMs
                     if (ms != null) o.put("timestampMs", ms)
@@ -140,13 +143,14 @@ object BackupManager {
                 root.put("folders", foldersJson)
                 root.put("folderSongs", linksJson)
                 root.put("listenLog", logsJson)
+                root.put("favoriteSongs", JSONArray(favorites.map { it.songId }))
 
                 val bytes = root.toString().toByteArray(Charsets.UTF_8)
                 val stream = app.contentResolver.openOutputStream(uri, "wt")
                     ?: error("Could not open the file for writing")
                 stream.use { it.write(bytes) }
 
-                notes.size + states.size + folders.size + links.size + logs.size
+                notes.size + states.size + folders.size + links.size + logs.size + favorites.size
             }
         }
 
@@ -210,6 +214,14 @@ object BackupManager {
                 var listensAdded = 0
 
                 db.withTransaction {
+                    val favoriteIds = root.optJSONArray("favoriteSongs")
+                    if (favoriteIds != null) {
+                        for (i in 0 until favoriteIds.length()) {
+                            resolve(favoriteIds.getLong(i))?.let {
+                                db.favoriteSongDao().add(com.dawutdeveloper.trutho.data.local.FavoriteSong(it))
+                            }
+                        }
+                    }
                     // ---- Notes ----
                     val noteKeys = HashSet<String>()
                     for (n in db.noteDao().getAll()) {
@@ -237,7 +249,8 @@ object BackupManager {
                                         songId = newSong,
                                         text = noteText,
                                         createdAt = createdAt,
-                                        timestampMs = stamp
+                                        timestampMs = stamp,
+                                        isFavorite = o.optBoolean("isFavorite", false)
                                     )
                                 )
                             }

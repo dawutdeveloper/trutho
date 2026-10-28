@@ -36,6 +36,9 @@ interface NoteDao {
     @Query("UPDATE notes SET text = :text WHERE id = :id")
     suspend fun updateText(id: Int, text: String)
 
+    @Query("UPDATE notes SET isFavorite = NOT isFavorite WHERE id = :id")
+    suspend fun toggleFavorite(id: Int)
+
     @Query("DELETE FROM notes WHERE songId IN (:songIds)")
     suspend fun deleteForSongs(songIds: List<Long>)
 }

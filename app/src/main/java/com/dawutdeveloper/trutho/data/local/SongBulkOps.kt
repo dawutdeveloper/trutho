@@ -28,6 +28,7 @@ suspend fun AppDatabase.setKaizenStatus(songIds: List<Long>, status: KaizenStatu
 // Listening history remains intentionally intact.
 suspend fun AppDatabase.forgetSongs(songIds: Collection<Long>) {
     songIds.distinct().chunked(500).forEach { chunk ->
+        favoriteSongDao().removeSongs(chunk)
         noteDao().deleteForSongs(chunk)
         trackStateDao().deleteForSongs(chunk)
         folderDao().removeSongsEverywhere(chunk)

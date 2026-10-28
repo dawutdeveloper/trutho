@@ -147,7 +147,8 @@ fun LibraryScreen() {
         }
     }
 
-    LaunchedEffect(hasPermission) {
+    val mediaRevision by com.dawutdeveloper.trutho.data.media.MediaChanges.revision.collectAsState()
+    LaunchedEffect(hasPermission, mediaRevision) {
         if (hasPermission) {
             loaded = false
             songs = withContext(Dispatchers.IO) {

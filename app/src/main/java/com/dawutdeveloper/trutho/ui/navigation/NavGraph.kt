@@ -27,6 +27,7 @@ fun NavGraph(navController: NavHostController) {
                         launchSingleTop = true
                     }
                 },
+                onOpenFavorites = { navController.navigate(Screen.Favorites.route) },
                 onOpenStats = {
                     navController.navigate(Screen.Stats.route) {
                         launchSingleTop = true
@@ -38,6 +39,17 @@ fun NavGraph(navController: NavHostController) {
                     }
                 }
             )
+        }
+        composable(Screen.Favorites.route) {
+            com.dawutdeveloper.trutho.ui.favorites.FavoritesScreen(
+                onBack = { navController.popBackStack() },
+                onOpenNote = { navController.navigate(Screen.NoteDetail.createRoute(it)) })
+        }
+        composable(Screen.SongEdit.route,
+            arguments = listOf(navArgument("songId") { type = NavType.LongType })) { entry ->
+            com.dawutdeveloper.trutho.ui.player.SongEditScreen(
+                entry.arguments?.getLong("songId") ?: -1L,
+                onBack = { navController.popBackStack() })
         }
         composable(Screen.Library.route) { LibraryScreen() }
         composable(Screen.Kaizen.route) { KaizenScreen() }
@@ -85,6 +97,7 @@ fun NavGraph(navController: NavHostController) {
             val songId = backStackEntry.arguments?.getLong("songId") ?: -1L
             PlayerScreen(
                 songId = songId,
+                onEdit = { navController.navigate(Screen.SongEdit.createRoute(it)) },
                 onBack = { navController.popBackStack() },
                 onOpenNote = { noteId ->
                     navController.navigate(Screen.NoteDetail.createRoute(noteId))

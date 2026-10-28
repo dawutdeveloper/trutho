@@ -13,12 +13,14 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         TrackState::class,
         Folder::class,
         FolderSong::class,
-        ListenLog::class
+        ListenLog::class,
+        FavoriteSong::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
+    abstract fun favoriteSongDao(): FavoriteSongDao
     abstract fun noteDao(): NoteDao
     abstract fun trackStateDao(): TrackStateDao
     abstract fun folderDao(): FolderDao
@@ -76,6 +78,13 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `notes` ADD COLUMN `isFavorite` INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `favorite_songs` (`songId` INTEGER NOT NULL, PRIMARY KEY(`songId`))")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -87,7 +96,8 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_1_2,
                         MIGRATION_2_3,
                         MIGRATION_3_4,
-                        MIGRATION_4_5
+                        MIGRATION_4_5,
+                        MIGRATION_5_6
                     )
                     .build()
                     .also { INSTANCE = it }

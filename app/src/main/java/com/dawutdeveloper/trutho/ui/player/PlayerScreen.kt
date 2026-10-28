@@ -23,6 +23,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import com.dawutdeveloper.trutho.ui.components.FavoriteButton
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Pause
@@ -70,6 +72,7 @@ import kotlinx.coroutines.launch
 fun PlayerScreen(
     songId: Long,
     onBack: () -> Unit,
+    onEdit: (Long) -> Unit,
     onOpenNote: (Int) -> Unit
 ) {
     val context = LocalContext.current
@@ -81,6 +84,8 @@ fun PlayerScreen(
 
     // Follow the song that is really playing (it can change with next/previous)
     val activeId = currentSong?.id ?: songId
+    val favoriteFlow = remember { db.favoriteSongDao().observeIds() }
+    val favoriteIds by favoriteFlow.collectAsState(initial = emptyList())
 
     var showNotes by remember { mutableStateOf(false) }
     val notesFlow = remember(activeId) { db.noteDao().getNotesForSong(activeId) }
@@ -103,6 +108,12 @@ fun PlayerScreen(
             IconButton(onClick = { showNotes = true }) {
                 Icon(Icons.Filled.EditNote, contentDescription = "Notes")
             }
+            IconButton(onClick = { onEdit(activeId) }, enabled = currentSong != null) {
+                Icon(Icons.Filled.Edit, contentDescription = "Edit song")
+            }
+            FavoriteButton(activeId in favoriteIds, {
+                scope.launch { db.favoriteSongDao().toggle(activeId) }
+            }, enabled = currentSong != null)
             Spacer(Modifier.weight(1f))
             IconButton(onClick = onBack) {
                 Icon(Icons.Filled.KeyboardArrowDown, contentDescription = "Close")
@@ -229,6 +240,7 @@ fun PlayerScreen(
                         )
                     }
                 },
+                onFavoriteNote = { note -> scope.launch { db.noteDao().toggleFavorite(note.id) } },
                 onDeleteNote = { note ->
                     scope.launch { db.noteDao().deleteNote(note) }
                 },
@@ -346,6 +358,7 @@ private fun KaizenControls(
 private fun NotesSheetContent(
     notes: List<Note>,
     onAddNote: (String, Long?) -> Unit,
+    onFavoriteNote: (Note) -> Unit,
     onDeleteNote: (Note) -> Unit,
     onJump: (Long) -> Unit,
     onNoteClick: (Int) -> Unit
@@ -433,8 +446,11 @@ private fun NotesSheetContent(
                         )
                     },
                     trailingContent = {
-                        IconButton(onClick = { onDeleteNote(note) }) {
-                            Icon(Icons.Filled.Delete, contentDescription = "Delete note")
+                        Row {
+                            FavoriteButton(note.isFavorite, { onFavoriteNote(note) })
+                            IconButton(onClick = { onDeleteNote(note) }) {
+                                Icon(Icons.Filled.Delete, contentDescription = "Delete note")
+                            }
                         }
                     },
                     modifier = Modifier.clickable { onNoteClick(note.id) }

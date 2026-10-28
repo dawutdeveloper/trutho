@@ -9,5 +9,6 @@ data class Note(
     val songId: Long,
     val text: String,
     val createdAt: Long = System.currentTimeMillis(),
-    val timestampMs: Long? = null
+    val timestampMs: Long? = null,
+    @androidx.room.ColumnInfo(defaultValue = "0") val isFavorite: Boolean = false
 )

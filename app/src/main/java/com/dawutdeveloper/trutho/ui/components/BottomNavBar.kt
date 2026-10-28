@@ -11,6 +11,7 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.dawutdeveloper.trutho.ui.navigation.bottomNavItems
+import com.dawutdeveloper.trutho.ui.navigation.Screen
 
 @Composable
 fun BottomNavBar(navController: NavController) {
@@ -19,12 +20,16 @@ fun BottomNavBar(navController: NavController) {
         val currentDestination = navBackStackEntry?.destination
 
         bottomNavItems.forEach { screen ->
-            val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
+            val insideFolder = currentDestination?.route == Screen.FolderDetail.route
+            val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true ||
+                (screen == Screen.Folders && insideFolder)
 
             NavigationBarItem(
                 selected = selected,
                 onClick = {
-                    navController.navigate(screen.route) {
+                    if (screen == Screen.Folders && insideFolder) {
+                        navController.popBackStack(Screen.Folders.route, false)
+                    } else navController.navigate(screen.route) {
                         popUpTo(navController.graph.findStartDestination().id) {
                             saveState = true
                         }

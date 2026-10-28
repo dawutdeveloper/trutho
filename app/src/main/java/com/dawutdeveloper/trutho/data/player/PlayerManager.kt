@@ -162,14 +162,13 @@ object PlayerManager {
         controller?.let { if (it.isPlaying) it.pause() else it.play() }
     }
 
-    // Keep the existing play/pause intent when skipping tracks.
+    // Next always starts the selected track, even when playback was paused.
     // The MediaSession also handles lock-screen and headset skip commands directly.
     fun skipNext() {
         controller?.let { player ->
             if (player.hasNextMediaItem()) {
-                val shouldContinuePlaying = player.playWhenReady
                 player.seekToNextMediaItem()
-                if (shouldContinuePlaying) player.play()
+                player.play()
             }
         }
     }
@@ -179,6 +178,18 @@ object PlayerManager {
             val shouldContinuePlaying = player.playWhenReady
             player.seekToPrevious()
             if (shouldContinuePlaying) player.play()
+        }
+    }
+
+    fun onSongEdited(song: Song) {
+        playlist = playlist.map { if (it.id == song.id) song else it }
+        if (_currentSong.value?.id == song.id) _currentSong.value = song
+        controller?.let { c ->
+            for (index in 0 until c.mediaItemCount) {
+                if (c.getMediaItemAt(index).mediaId == song.uri.toString()) {
+                    c.replaceMediaItem(index, song.toMediaItem())
+                }
+            }
         }
     }
 
